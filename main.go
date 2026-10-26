@@ -31,7 +31,7 @@ func main() {
 	healthcheck := flag.Bool("healthcheck", false, "check local HTTP readiness")
 	flag.Parse()
 	if *hashPassword {
-		b, err := io.ReadAll(io.LimitReader(os.Stdin, 74))
+		b, err := io.ReadAll(io.LimitReader(os.Stdin, 75)) // Detect overflow beyond 72 bytes plus CRLF.
 		if err != nil {
 			log.Fatal("cannot read password")
 		}
@@ -77,14 +77,22 @@ func main() {
 	srv := http.Server{Addr: *listen, Handler: a, ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 30 * time.Second, IdleTimeout: 120 * time.Second, MaxHeaderBytes: 16384}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	shutdownDone := make(chan struct{})
 	go func() {
+		defer close(shutdownDone)
 		<-ctx.Done()
 		shutdown, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		srv.Shutdown(shutdown)
+		if err := srv.Shutdown(shutdown); err != nil {
+			log.Print("graceful shutdown failed: ", err)
+			if err := srv.Close(); err != nil {
+				log.Print("server close failed: ", err)
+			}
+		}
 	}()
 	log.Print("file-share ready")
 	if err := srv.ListenAndServe(); err != http.ErrServerClosed {
 		log.Fatal(err)
 	}
+	<-shutdownDone
 }

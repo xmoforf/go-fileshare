@@ -26,7 +26,7 @@ chmod 600 config/auth.json
 nix run . -- -hash-password
 ```
 
-The last command reads a password from stdin until EOF and prints a bcrypt hash. Use a trusted, non-logging terminal/input source; terminal input may echo. Password must be 12–72 bytes. Do not put it in command-line arguments or shell history. Edit `config/auth.json` with your username and generated `password_hash`; the example placeholder is not usable authentication. Never commit real credentials or hashes.
+The last command reads a password from stdin and prints a bcrypt hash. Finish input with EOF; one trailing LF or CRLF is removed. Password must be 12–72 bytes; oversized input is rejected, not silently truncated. Use a trusted, non-logging terminal/input source; terminal input may echo. Do not put it in command-line arguments or shell history. Edit `config/auth.json` with your username and generated `password_hash`; the example placeholder is not usable authentication. Never commit real credentials or hashes.
 
 ```sh
 nix run . -- \
@@ -40,6 +40,8 @@ nix run . -- \
 Replace the root and HTTPS origin. Put a TLS reverse proxy in front of the loopback listener, routing that origin to `127.0.0.1:8080`. `-origin` is required, with no path or trailing slash. Login uses Secure cookies and exact Origin checks: plain HTTP is not a supported browser setup. The app itself serves HTTP, not TLS.
 
 Defaults: listen `:8080`, root `/data`, database `/state/shares.db`, auth `/config/auth.json`. Prefer explicit loopback binding unless an isolated container network requires otherwise. `-healthcheck` probes HTTP readiness at `127.0.0.1:8080` only; for custom ports query `/healthz` yourself.
+
+SIGTERM or Ctrl-C stops accepting connections and allows active requests up to 30 seconds to finish. After that deadline, remaining connections are closed and the timeout is logged; unfinished downloads are interrupted. Configure any service manager's stop timeout longer than 30 seconds.
 
 The retained `Dockerfile` is an optional standalone image build, not a deployment manifest. It runs as UID/GID `999:993`; mounts must grant that identity access. Mount the served tree and credentials read-only, state writable, pass `-origin`, and restrict ingress. Nix builds do not need Docker.
 
