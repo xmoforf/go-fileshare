@@ -378,8 +378,11 @@ func (a *app) list(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer f.Close()
-	entries, err := f.ReadDir(-1)
-	if err != nil {
+	if r.Context().Err() != nil {
+		return
+	}
+	entries, err := f.ReadDir(256)
+	if err != nil && err != io.EOF {
 		fail(w, 404)
 		return
 	}
@@ -389,24 +392,53 @@ func (a *app) list(w http.ResponseWriter, r *http.Request) {
 		Size  int64     `json:"size"`
 		Mtime time.Time `json:"mtime"`
 	}
-	result := []entry{}
-	for _, e := range entries {
-		// Symlinks and special files are omitted; regular descendants stay predictable.
-		var info unix.Stat_t
-		if unix.Fstatat(int(f.Fd()), e.Name(), &info, unix.AT_SYMLINK_NOFOLLOW) != nil {
-			continue
-		}
-		kind := "file"
-		switch info.Mode & unix.S_IFMT {
-		case unix.S_IFDIR:
-			kind = "directory"
-		case unix.S_IFREG:
-		default:
-			continue
-		}
-		result = append(result, entry{e.Name(), kind, info.Size, time.Unix(info.Mtim.Sec, info.Mtim.Nsec).UTC()})
+	w.Header().Set("Content-Type", "application/json")
+	if _, err := io.WriteString(w, "["); err != nil {
+		return
 	}
-	jsonResponse(w, 200, result)
+	encoder := json.NewEncoder(w)
+	first := true
+	for {
+		for _, e := range entries {
+			if r.Context().Err() != nil {
+				return
+			}
+			// Symlinks and special files are omitted; regular descendants stay predictable.
+			var info unix.Stat_t
+			if unix.Fstatat(int(f.Fd()), e.Name(), &info, unix.AT_SYMLINK_NOFOLLOW) != nil {
+				continue
+			}
+			kind := "file"
+			switch info.Mode & unix.S_IFMT {
+			case unix.S_IFDIR:
+				kind = "directory"
+			case unix.S_IFREG:
+			default:
+				continue
+			}
+			if !first {
+				if _, err := io.WriteString(w, ","); err != nil {
+					return
+				}
+			}
+			if err := encoder.Encode(entry{e.Name(), kind, info.Size, time.Unix(info.Mtim.Sec, info.Mtim.Nsec).UTC()}); err != nil {
+				return
+			}
+			first = false
+		}
+		if r.Context().Err() != nil {
+			return
+		}
+		if err == io.EOF {
+			break
+		}
+		entries, err = f.ReadDir(256)
+		if err != nil && err != io.EOF {
+			// Headers may be sent; abort rather than return a successful partial listing.
+			panic(http.ErrAbortHandler)
+		}
+	}
+	io.WriteString(w, "]\n")
 }
 func (a *app) shared(w http.ResponseWriter, r *http.Request) {
 	parts := strings.SplitN(strings.TrimPrefix(r.URL.Path, "/s/"), "/", 2)

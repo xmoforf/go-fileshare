@@ -12,11 +12,16 @@ import (
 
 // Explicit opt-in synthetic browser fixture; never mounts production files or state.
 func TestBrowserFixture(t *testing.T) {
-	if os.Getenv("FILE_SHARE_BROWSER_FIXTURE") != "1" {
+	mode := os.Getenv("FILE_SHARE_BROWSER_FIXTURE")
+	if mode != "1" && mode != "large" {
 		t.Skip("interactive browser fixture")
 	}
 	a, root, _ := fixture(t)
-	for i := 0; i < 205; i++ {
+	count := 205
+	if mode == "large" {
+		count = 49997 // Together with the three fixture entries: 50,000.
+	}
+	for i := 0; i < count; i++ {
 		name := filepath.Join(root, "folder", fmt.Sprintf("item-%03d.txt", i))
 		if err := os.WriteFile(name, []byte("synthetic browser fixture"), 0600); err != nil {
 			t.Fatal(err)

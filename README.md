@@ -56,6 +56,10 @@ The retained `Dockerfile` is an optional standalone image build, not a deploymen
 - Active HTML/SVG content downloads as attachments; media streams normally. Responses set no-store/no-referrer. Browser writes require exact Origin and a custom header. No API CORS or forwarded-IP trust.
 - This project adds no VPN, proxy allowlist or public-ingress protection. Configure those separately. Proxies may log bearer URLs: restrict/redact logs.
 
+Large directories have no entry-count cap. The server reads 256 entries at a time and streams the JSON listing, stopping on cancellation or write failure. The browser still loads the whole listing for global filtering/sorting; its memory use grows with directory size. Complete 50,000-entry listings are tested, not a guarantee for every client or filesystem.
+
+Public ingress must bound active requests/connections and stalled readers; the app has no global transfer cap or response write-idle deadline. See [SECURITY.md](SECURITY.md) for threat boundaries, enforced limits, measured workloads and vulnerability/reporting policy. Do not use a short total response timeout that breaks progressing long downloads.
+
 SQLite stores share bearer tokens. Protect its directory and backups like credentials. Back up with SQLite online backup or while stopped, retaining file permissions and credentials. Copying an active database file alone is unsafe. Restoring an old database can resurrect revoked links. Password changes do not revoke shares.
 
 ## Development
@@ -68,6 +72,8 @@ nix flake check
 ```
 
 `FILE_SHARE_BROWSER_FIXTURE=1 go test -run '^TestBrowserFixture$' -v` (inside `nix develop`) starts an opt-in temporary HTTPS fixture for manual UI checks. It uses synthetic files and test-only credentials from `server_test.go`. Stop with SIGTERM; never use production files or expose it publicly. Automated tests are not visual/browser evidence.
+
+Run the pinned vulnerability scan described in [CONTRIBUTING.md](CONTRIBUTING.md) before releases and after security updates. Scan errors are not a clean result.
 
 For dependency updates, change `go.mod`/`go.sum`, recompute `vendorHash` using Nix's reported fixed-output hash, and rerun checks. Update `flake.lock` deliberately with `nix flake update`. Keep Go version compatible with `go.mod`.
 
