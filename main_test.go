@@ -51,6 +51,13 @@ func cliCommand(t *testing.T, args ...string) *exec.Cmd {
 	return cmd
 }
 
+func TestCLIVersion(t *testing.T) {
+	out, err := cliCommand(t, "-version").CombinedOutput()
+	if err != nil || string(out) != "file-share dev (unknown)\n" {
+		t.Fatalf("version without config: %v: %s", err, out)
+	}
+}
+
 func TestCLIHashPassword(t *testing.T) {
 	for _, test := range []struct {
 		name, password, ending string

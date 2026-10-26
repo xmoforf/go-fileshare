@@ -11,7 +11,7 @@ Single-owner file browser and expiring file/folder links. Embedded browser UI, b
 | NixOS service module | [NixOS installation](docs/nixos.md) |
 | Nix package / local CLI | [Requirements and build](#requirements-and-build), then [configure and run](#configure-and-run) |
 
-Start from a reviewed source revision; these guides do not imply published binaries/images exist. All paths require Linux and trusted HTTPS for browser use. Public exposure additionally requires [ingress controls](SECURITY.md#public-ingress-requirements).
+Start from a reviewed source revision; these guides do not imply published binaries/images exist. [Local release candidates and CI](docs/releases.md) describe versioned artifacts and release gates. All paths require Linux and trusted HTTPS for browser use. Public exposure additionally requires [ingress controls](SECURITY.md#public-ingress-requirements).
 
 After installation: [browse/share/revoke](docs/usage.md), [rotate credentials, back up, restore and upgrade](docs/operations.md), and [security limits](SECURITY.md).
 
@@ -55,6 +55,8 @@ nix run . -- \
 ```
 
 Replace the root and HTTPS origin. Put a TLS reverse proxy in front of the loopback listener, routing that origin to `127.0.0.1:8080`. `-origin` is required, with no path or trailing slash. Login uses Secure cookies and exact Origin checks: plain HTTP is not a supported browser setup. The app itself serves HTTP, not TLS.
+
+`-version` prints version and source revision without reading configuration. Local release candidates embed these values; ordinary builds report `dev (unknown)`.
 
 Defaults: listen `:8080`, root `/data`, database `/state/shares.db`, auth `/config/auth.json`. Prefer explicit loopback binding unless an isolated container network requires otherwise. `-healthcheck` probes HTTP readiness at `127.0.0.1:8080` only; for custom ports query `/healthz` yourself.
 

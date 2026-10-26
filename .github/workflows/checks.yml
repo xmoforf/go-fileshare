@@ -1,0 +1,42 @@
+name: Checks
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contracts:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: cachix/install-nix-action@d9186cbdca7adedf113a159fa91f725a27866771 # v31
+      - run: nix develop -c sh scripts/check-go.sh
+      - run: nix build
+      - if: matrix.runner == 'ubuntu-24.04'
+        run: nix flake check
+      - if: matrix.runner == 'ubuntu-24.04'
+        run: |
+          scanner=$(nix build --no-link --print-out-paths --impure --expr \
+            'let f = builtins.getFlake (toString ./.); in (builtins.getAttr builtins.currentSystem f.inputs.nixpkgs.legacyPackages).govulncheck')
+          nix develop -c "$scanner/bin/govulncheck" -show verbose ./...
+  browsers:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: cachix/install-nix-action@d9186cbdca7adedf113a159fa91f725a27866771 # v31
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npx playwright install --with-deps chromium firefox webkit
+      - run: nix develop -c npm run test:browser

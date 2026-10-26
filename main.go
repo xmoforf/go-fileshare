@@ -21,6 +21,10 @@ import (
 //go:embed index.html
 var ui []byte
 
+// Release builds set these with -ldflags -X.
+var version = "dev"
+var revision = "unknown"
+
 func main() {
 	listen := flag.String("listen", ":8080", "HTTP listen address (TLS terminates at proxy)")
 	root := flag.String("root", "/data", "read-only file root")
@@ -29,7 +33,12 @@ func main() {
 	origin := flag.String("origin", "", "external HTTPS origin (required)")
 	hashPassword := flag.Bool("hash-password", false, "hash password read from stdin; outputs only bcrypt hash")
 	healthcheck := flag.Bool("healthcheck", false, "check local HTTP readiness")
+	showVersion := flag.Bool("version", false, "print version and source revision")
 	flag.Parse()
+	if *showVersion {
+		fmt.Printf("file-share %s (%s)\n", version, revision)
+		return
+	}
 	if *hashPassword {
 		b, err := io.ReadAll(io.LimitReader(os.Stdin, 75)) // Detect overflow beyond 72 bytes plus CRLF.
 		if err != nil {

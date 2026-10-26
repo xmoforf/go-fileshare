@@ -1,0 +1,6 @@
+FROM scratch
+COPY file-share /file-share
+COPY LICENSE THIRD_PARTY_NOTICES.md /usr/share/doc/file-share/
+COPY licenses/ /usr/share/doc/file-share/licenses/
+USER 999:993
+ENTRYPOINT ["/file-share"]

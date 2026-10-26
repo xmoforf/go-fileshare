@@ -43,6 +43,12 @@ async function checkUI(page) {
     await rowAt(0).locator('a').focus();
     await page.keyboard.press('Home');
   }
+  // A native destination tests list exit without engine-specific browser-chrome focus.
+  await page.evaluate(() => {
+    const exit = document.createElement('button');
+    exit.id = 'test-list-exit'; exit.textContent = 'Test list exit';
+    document.querySelector('#scrollWrap').after(exit);
+  });
   // Native Tab must reach every link/action, including rows beyond original viewport.
   await rows.first().locator('a').focus();
   for (let i = 0; i < 208; i++) {
@@ -54,7 +60,8 @@ async function checkUI(page) {
     assert(await row.locator('button').nth(1).evaluate(el => el === document.activeElement), 'Tab reaches share ' + i);
     await page.keyboard.press('Tab');
   }
-  assert(await page.evaluate(() => !document.activeElement.closest('#viewport')), 'Tab exits after final row');
+  assert(await page.locator('#test-list-exit').evaluate(el => el === document.activeElement), 'Tab exits after final row');
+  await page.locator('#test-list-exit').evaluate(el => el.remove());
   await rowAt(207).locator('a').focus();
   await page.keyboard.press('Shift+Tab');
   assert(await rowAt(206).locator('button').last().evaluate(el => el === document.activeElement), 'reverse Tab reaches previous logical row');
@@ -93,3 +100,5 @@ async function checkUI(page) {
   assert(await page.locator('#shareCurrent').evaluate(el => el === document.activeElement), 'dialog restores trigger focus');
   return 'PASS: native sort, scroll focus, 624 Tabs, reverse Tab/Home/End, full filter, duration bounds and one-second creation';
 }
+
+if (typeof module !== 'undefined') module.exports = { checkUI };

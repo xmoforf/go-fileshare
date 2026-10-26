@@ -4,6 +4,8 @@ Use `nix develop` on Linux. See [README.md](README.md) for configuration and sec
 
 ## Test Commands
 
+[CI and local release gates](docs/releases.md) cover GitHub checks, the pinned Chromium/Firefox/WebKit runner, versioned Linux archives and local Docker image exports. `nix develop -c sh scripts/check-go.sh` combines fresh Go race/vet/module verification and Python contracts. No workflow publishes artifacts.
+
 ```sh
 nix develop -c go test -race ./...
 nix develop -c go vet ./...
@@ -21,7 +23,7 @@ Format Go changes with `gofmt`. Do not weaken Linux confinement or HTTPS origin 
 
 For UI regressions, start the opt-in HTTPS fixture described in README, log in with its test-only owner account, then open `/#/folder/`. It contains 208 synthetic entries. `ui_browser_test.js` defines `checkUI(page)` for a Playwright-compatible browser session; no package install is needed. In Pi's browser tool, submit the function from this file followed by `return await checkUI(page);`. Do not evaluate fetched code; the browser sandbox disables string-based code generation.
 
-It exercises native Enter/Space, forward/backward Tab across virtual rows, Home/End, distant-scroll focus retention, full-list filtering, duration validation and creation of a one-second synthetic share. Repeat at desktop and narrow viewport sizes; inspect focus visibility, layout and accessible names separately. This is not a screen-reader certification or a cross-engine pass.
+It exercises native Enter/Space, forward/backward Tab across virtual rows, Home/End, distant-scroll focus retention, full-list filtering, duration validation and creation of a one-second synthetic share. A temporary test-only button after the list checks Tab exit without relying on engine-specific browser-chrome focus behavior. Repeat at desktop and narrow viewport sizes; inspect focus visibility, layout and accessible names separately. This is not a screen-reader certification or a cross-engine pass.
 
 ## Operator rehearsal
 
