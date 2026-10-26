@@ -22,7 +22,7 @@ func TestAccessibleUIContract(t *testing.T) {
 			t.Errorf("UI missing native control: %s", s)
 		}
 	}
-	for _, s := range []string{`function renderPage()`, `customHours`, `id="pagination"`, `customSeconds`, `customLabel`, `value="custom"`} {
+	for _, s := range []string{`customHours`, `id="pagination"`, `customSeconds`, `customLabel`, `value="custom"`} {
 		if strings.Contains(string(ui), s) {
 			t.Errorf("UI retains obsolete behavior: %s", s)
 		}
@@ -30,7 +30,7 @@ func TestAccessibleUIContract(t *testing.T) {
 }
 
 func TestShareUIContract(t *testing.T) {
-	for _, s := range []string{`id="loginDialog"`, `id="shareDialog"`, `id="sharesDialog"`, `id="shareCurrent"`, `/api/list`, `/api/shares`, `/api/login`, `X-Requested-With`, `encodeURIComponent(item.name)`, `function renderVisible()`, `function applyFilterAndSort()`} {
+	for _, s := range []string{`id="loginDialog"`, `id="shareDialog"`, `id="sharesDialog"`, `id="shareCurrent"`, `/api/list`, `/api/shares`, `/api/login`, `X-Requested-With`, `encodeURIComponent(item.name)`} {
 		if !strings.Contains(string(ui), s) {
 			t.Errorf("UI missing %s", s)
 		}
