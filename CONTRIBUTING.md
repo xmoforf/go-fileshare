@@ -11,6 +11,8 @@ nix build
 nix flake check
 ```
 
+Container/reference changes also require `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_*.py'` and `python3 tests/compose_smoke.py`; see [Compose verification](docs/compose.md#disposable-verification) for prerequisites, coverage and retained disposable resources. The script tests the actual Compose/Caddy configuration over verified local HTTPS; it is not browser or public-ingress load evidence.
+
 Format Go changes with `gofmt`. Do not weaken Linux confinement or HTTPS origin checks to simplify tests. Tests use temporary synthetic data, never live credentials or shares.
 
 For UI regressions, start the opt-in HTTPS fixture described in README, log in with its test-only owner account, then open `/#/folder/`. It contains 208 synthetic entries. `ui_browser_test.js` defines `checkUI(page)` for a Playwright-compatible browser session; no package install is needed. In Pi's browser tool, submit the function from this file followed by `return await checkUI(page);`. Do not evaluate fetched code; the browser sandbox disables string-based code generation.

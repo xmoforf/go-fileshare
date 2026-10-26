@@ -7,6 +7,9 @@
 
 # Local credentials, state and build output
 /config/
+/.env
+/caddy-data/
+/caddy-config/
 /data/
 /state/
 /auth.json

@@ -43,7 +43,7 @@ Defaults: listen `:8080`, root `/data`, database `/state/shares.db`, auth `/conf
 
 SIGTERM or Ctrl-C stops accepting connections and allows active requests up to 30 seconds to finish. After that deadline, remaining connections are closed and the timeout is logged; unfinished downloads are interrupted. Configure any service manager's stop timeout longer than 30 seconds.
 
-The retained `Dockerfile` is an optional standalone image build, not a deployment manifest. It runs as UID/GID `999:993`; mounts must grant that identity access. Mount the served tree and credentials read-only, state writable, pass `-origin`, and restrict ingress. Nix builds do not need Docker.
+For a standalone container installation, use [Compose with Caddy](docs/compose.md), `compose.yaml` and `compose.env.example`. It includes non-root services, read-only files/credentials, writable isolated state, HTTPS and a disposable smoke test. Ingress defaults to loopback; public exposure needs the additional controls in `SECURITY.md`. The image defaults to UID/GID `999:993`; Compose can select another non-root host identity with matching mount permissions. Nix builds do not need Docker.
 
 ## Sharing and security
 
