@@ -281,9 +281,8 @@
     <label>Expires after <select id="lifetime">
       <option value="3600">1 hour</option><option value="86400">1 day</option>
       <option value="604800" selected>7 days</option><option value="2592000">30 days</option>
-      <option value="custom">Custom duration</option><option value="0">Never</option>
+      <option value="0">Never</option>
     </select></label>
-    <label id="customLabel" hidden>Seconds <input id="customSeconds" type="number" min="1" max="315360000" step="1" value="86400" disabled></label>
     <p>Anyone with this link can access this item. Folder shares include future files.</p>
     <p id="shareMessage" class="message" role="status"></p>
     <label id="linkLabel" hidden>Share link <input id="shareLink" readonly style="width:100%"></label>
@@ -352,18 +351,12 @@
     catch (error) { window.alert(error.message); }
   });
   document.getElementById('shareCurrent').addEventListener('click', function() { showShare(decodedDir()); });
-  document.getElementById('lifetime').addEventListener('change', function() {
-    document.getElementById('customLabel').hidden = this.value !== 'custom';
-    document.getElementById('customSeconds').required = this.value === 'custom';
-    document.getElementById('customSeconds').disabled = this.value !== 'custom';
-  });
   document.getElementById('shareForm').addEventListener('submit', async function(event) {
     event.preventDefault();
     var button = document.getElementById('createShare'); button.disabled = true;
-    var value = document.getElementById('lifetime').value;
-    var seconds = Number(value === 'custom' ? document.getElementById('customSeconds').value : value);
+    var seconds = Number(document.getElementById('lifetime').value);
     try {
-      if (!Number.isSafeInteger(seconds) || seconds < 0 || seconds > 315360000 || (value === 'custom' && seconds < 1)) throw new Error('Choose a duration between 1 second and 10 years.');
+      if (!Number.isSafeInteger(seconds) || seconds < 0 || seconds > 315360000) throw new Error('Choose an expiry from the list.');
       var s = await api('/api/shares', 'POST', {path: selectedPath, seconds: seconds});
       document.getElementById('shareLink').value = shareURL(s);
       document.getElementById('linkLabel').hidden = false;

@@ -16,7 +16,7 @@ npx playwright install --with-deps chromium firefox webkit
 nix develop -c npm run test:browser
 ```
 
-Do not run `--with-deps` on a managed host without permission. The browser runner compiles the existing synthetic HTTPS fixture, starts it on loopback, and runs all three engines at 1280×800 and 390×844. Missing engines fail the command. It checks owner login, keyboard traversal/focus/filtering/duration validation, folder-share creation, anonymous listing/download and revocation. Screenshots remain in the printed temporary directory. The fixture stops in `finally`; self-signed TLS exceptions apply only to synthetic browser contexts. No live credentials/state are used. Playwright and its browser binaries are development tools, not application dependencies or release payloads.
+Do not run `--with-deps` on a managed host without permission. The browser runner compiles the existing synthetic HTTPS fixture, starts it on loopback, and runs all three engines at 1280×800 and 390×844. Missing engines fail the command. It checks owner login, keyboard traversal/focus/filtering, preset-only expiry controls and all four finite expiry values plus Never, folder-share creation, anonymous listing/download and revocation. Screenshots remain in the printed temporary directory. The fixture stops in `finally`; self-signed TLS exceptions apply only to synthetic browser contexts. No live credentials/state are used. Playwright and its browser binaries are development tools, not application dependencies or release payloads.
 
 For hosts without browser libraries, use a disposable pinned Playwright container instead of changing host packages:
 

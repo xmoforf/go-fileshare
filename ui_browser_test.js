@@ -83,22 +83,27 @@ async function checkUI(page) {
   assert(await page.locator('#scrollWrap').evaluate(el => el.scrollTop) === 0, 'filter resets scroll');
 
   await page.locator('#shareCurrent').click();
-  await page.getByLabel('Expires after').selectOption('custom');
-  const seconds = page.getByLabel('Seconds', { exact: true });
-  for (const [value, valid] of [['1', true], ['315360000', true], ['0', false], ['315360001', false], ['1.5', false], ['', false]]) {
-    await seconds.fill(value);
-    assert(await seconds.evaluate(el => el.checkValidity()) === valid, 'duration boundary ' + value);
+  const lifetime = page.getByLabel('Expires after');
+  assert(await lifetime.inputValue() === '604800', 'default expiry is seven days');
+  assert((await lifetime.locator('option').evaluateAll(options => options.map(o => o.value))).join(',') === '3600,86400,604800,2592000,0', 'only presets and Never remain');
+  assert(await page.locator('#customSeconds, #customLabel').count() === 0, 'custom duration controls removed');
+  for (const value of ['3600', '86400', '604800', '2592000']) {
+    await lifetime.selectOption(value);
+    const before = Math.floor(Date.now() / 1000);
+    const created = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith('/api/shares'));
+    await page.getByRole('button', { name: 'Create link', exact: true }).click();
+    const response = await created;
+    assert(response.status() === 201, 'preset share created');
+    assert(response.request().postDataJSON().seconds === Number(value), 'preset sends API seconds');
+    const share = await response.json();
+    assert(share.expires >= before + Number(value) && share.expires <= Math.floor(Date.now() / 1000) + Number(value), 'preset expiry matches duration');
+    await page.getByLabel('Share link', { exact: true }).waitFor({ state: 'visible' });
+    assert((await page.locator('#shareMessage').textContent()).startsWith('Expires '), 'expiry shown');
+    await page.locator('#shareDialog').getByRole('button', { name: 'Close', exact: true }).click();
+    if (value !== '2592000') await page.locator('#shareCurrent').click();
   }
-  await page.getByLabel('Expires after').selectOption('3600');
-  assert(await page.locator('#shareForm').evaluate(el => el.checkValidity()), 'invalid hidden custom input must not block preset');
-  await page.getByLabel('Expires after').selectOption('custom');
-  await seconds.fill('1');
-  await page.getByRole('button', { name: 'Create link', exact: true }).click();
-  await page.getByLabel('Share link', { exact: true }).waitFor({ state: 'visible' });
-  assert((await page.locator('#shareMessage').textContent()).startsWith('Expires '), 'one-second share created');
-  await page.locator('#shareDialog').getByRole('button', { name: 'Close', exact: true }).click();
   assert(await page.locator('#shareCurrent').evaluate(el => el === document.activeElement), 'dialog restores trigger focus');
-  return 'PASS: native sort, scroll focus, 624 Tabs, reverse Tab/Home/End, full filter, duration bounds and one-second creation';
+  return 'PASS: native sort, scroll focus, 624 Tabs, reverse Tab/Home/End, full filter, preset-only controls and four preset expiries';
 }
 
 if (typeof module !== 'undefined') module.exports = { checkUI };

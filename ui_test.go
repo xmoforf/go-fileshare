@@ -12,13 +12,17 @@ func TestAccessibleUIContract(t *testing.T) {
 		`<button type="button" class="col-date" data-sort="date">`,
 		`id="viewport" role="list" aria-label="Files"`,
 		`aria-posinset`, `aria-setsize`,
-		`id="customSeconds" type="number" min="1" max="315360000" step="1"`,
+		`<option value="3600">1 hour</option>`,
+		`<option value="86400">1 day</option>`,
+		`<option value="604800" selected>7 days</option>`,
+		`<option value="2592000">30 days</option>`,
+		`<option value="0">Never</option>`,
 	} {
 		if !strings.Contains(string(ui), s) {
 			t.Errorf("UI missing native control: %s", s)
 		}
 	}
-	for _, s := range []string{`function renderPage()`, `customHours`, `id="pagination"`} {
+	for _, s := range []string{`function renderPage()`, `customHours`, `id="pagination"`, `customSeconds`, `customLabel`, `value="custom"`} {
 		if strings.Contains(string(ui), s) {
 			t.Errorf("UI retains obsolete behavior: %s", s)
 		}

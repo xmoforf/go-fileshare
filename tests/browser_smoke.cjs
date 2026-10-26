@@ -53,9 +53,15 @@ async function main() {
             console.log(label, await checkUI(page));
             await page.locator('#shareCurrent').click();
             await page.getByLabel('Expires after').selectOption('0');
+            const created = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith('/api/shares'));
             await page.getByRole('button', { name: 'Create link', exact: true }).click();
+            const response = await created;
+            assert.equal(response.status(), 201);
+            assert.equal(response.request().postDataJSON().seconds, 0);
+            assert.equal((await response.json()).expires, 0);
             const link = page.getByLabel('Share link', { exact: true });
             await link.waitFor({ state: 'visible' });
+            await page.screenshot({ path: path.join(work, `${label}-share-dialog.png`) });
             const share = await link.inputValue();
             assert.equal(new URL(share).origin, url);
             await page.locator('#shareDialog').getByRole('button', { name: 'Close', exact: true }).click();

@@ -4,7 +4,7 @@
 
 Project-owned source and embedded HTML/CSS/JavaScript are under the [MIT license](LICENSE), copyright (c) 2026 xmoforf. On 2026-10-26, xmoforf explicitly attested ownership/authorship of the imported Go code and UI, with no copied third-party code or assets beyond declared dependencies, and approved this grant (Bead `go-fileshare-19p.8`, approval `go-fileshare-qvm`). This is an owner attestation, not an independent reconstruction of authorship.
 
-The initial standalone commit `cb4d2fd` imported the snapshot documented in README: `/srv/docker/networks/torrent/file-share` at parent commit `0baa81a3718cde53484add65906bee889efc6f75`. Earlier source history was not imported. No live credentials/state were used for this assessment. The UI uses inline code, system fonts and text symbols, not external scripts, fonts or image assets. Later local changes remain in this repository's Git history.
+The initial standalone commit `cb4d2fd` imported a snapshot from `/srv/docker/networks/torrent/file-share` at parent commit `0baa81a3718cde53484add65906bee889efc6f75`. Earlier source history was not imported. This repository is independent: no runtime path or symlink points back to that installation. Its credentials, databases, networks, proxy configuration and `stack_test.py` deployment assertions were excluded; the old default hostname was replaced with an explicit `-origin` requirement. Creating or building this repository does not migrate, stop or update that service. No live credentials/state were used for this assessment. The UI uses inline code, system fonts and text symbols, not external scripts, fonts or image assets. Later local changes remain in this repository's Git history.
 
 ## Dependencies
 

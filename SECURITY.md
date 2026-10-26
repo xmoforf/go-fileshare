@@ -11,6 +11,14 @@ This is a single-owner, read-only file browser, not a multi-tenant storage servi
 - **Persistence:** SQLite contains bearer tokens. Restrict state/backups like credentials. Restoring old state can reactivate revoked links. Password changes/restarts invalidate memory-only sessions, not shares. Revoke unwanted shares separately. Follow the [restricted restore procedure](docs/operations.md#restore-without-surprising-recipients); if revocation history is incomplete, revoke all restored shares before reopening ingress.
 - **Transport/logs:** terminate HTTPS at a trusted reverse proxy; prevent direct public access to the HTTP listener. Proxies, browser history and copied URLs can expose tokens. Avoid logging share URLs/query strings; restrict log access. Response no-store/no-referrer headers do not erase copies already made elsewhere.
 
+## Password hashing
+
+Keep bcrypt for existing owner credentials. The CLI generates cost-12 hashes with a random salt; `newApp` validates the configured bcrypt cost and login uses `bcrypt.CompareHashAndPassword`. The stored string carries its algorithm version, salt and cost. The CLI accepts 12–72 bytes and rejects longer input rather than silently truncating it. Higher-cost imported hashes increase login work; the global rate limit does not make that work cancelable.
+
+Go's standard-library `crypto/pbkdf2` is a viable password-derived-key primitive, not a drop-in bcrypt verifier. A PBKDF2 password format would need an algorithm/version tag, random salt, calibrated iteration count, key length, bounded parameter parsing and constant-time verification. Neither algorithm is memory-hard; switching solely to remove an import is not a demonstrated security improvement. No FIPS compliance requirement or claim is established here.
+
+Existing bcrypt hashes cannot be converted to PBKDF2 without the password. A migration would require explicit credential regeneration or dual-format verification followed by rehashing on login. The server currently reads a read-only auth file and does not rewrite credentials, so automatic migration would also change its permissions and recovery model. Retain bcrypt and the current format; do not replace password hashing as a documentation cleanup. This decision is separate from the SQLite transitive-dependency audit in `go-fileshare-1r4`.
+
 ## Enforced bounds and remaining limits
 
 | Boundary | App behavior | Remaining requirement |

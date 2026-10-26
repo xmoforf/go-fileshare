@@ -1,52 +1,51 @@
 # Go file-share
 
-Single-owner file browser and expiring file/folder links. Embedded browser UI, bcrypt login, SQLite share storage, streaming and HTTP range requests. No external UI assets or database server.
+Browse files and create expiring file or folder links from a single owner account. The server includes its browser UI and SQLite storage; no external assets or database server are needed. Downloads support streaming and HTTP range requests. There are no uploads or multi-user accounts.
 
 ## Choose an installation
 
 | Path | Guide |
 |---|---|
-| Docker Engine + Compose, with Caddy HTTPS | [Compose installation](docs/compose.md) |
 | Linux binary or Go source, with systemd | [Binary/source installation](docs/systemd.md) |
+| Docker Engine + Compose, with Caddy HTTPS | [Compose installation](docs/compose.md) |
+| Nix package / local CLI | [Optional Nix build](#optional-nix-build) |
 | NixOS service module | [NixOS installation](docs/nixos.md) |
-| Nix package / local CLI | [Requirements and build](#requirements-and-build), then [configure and run](#configure-and-run) |
 
-Start from a reviewed source revision; these guides do not imply published binaries/images exist. [Local release candidates and CI](docs/releases.md) describe versioned artifacts and release gates. All paths require Linux and trusted HTTPS for browser use. Public exposure additionally requires [ingress controls](SECURITY.md#public-ingress-requirements).
-
-After installation: [browse/share/revoke](docs/usage.md), [rotate credentials, back up, restore and upgrade](docs/operations.md), and [security limits](SECURITY.md).
+Use a reviewed source revision or a trusted binary for your architecture. Public binaries/images are not promised; [release documentation](docs/releases.md) covers local candidates and verification.
 
 ## Requirements and build
 
-Linux 5.6+ with `openat2` support is required; symlinks and special files are excluded. Nix with flakes enabled provides Go 1.27.3 and development tools. Flake targets: x86_64-linux and aarch64-linux; ARM build/runtime requires separate verification, not just evaluation.
+Run on **Linux 5.6+ with working `openat2`**, including inside containers. The server uses it to confine access to the served tree and reject symlinks; startup fails if it is unavailable or blocked. There is no fallback to `openat()` and no macOS/Windows support.
+
+From the repository root, with Go **1.27.3 or newer compatible with `go.mod`**:
 
 ```sh
-nix develop                 # pinned Go + C compiler (race tests) + Git
-nix build                   # result/bin/file-share; includes Go tests
-nix run . -- -h
-nix flake check
+go version
+GOTOOLCHAIN=local go mod download
+GOTOOLCHAIN=local go mod verify
+CGO_ENABLED=0 GOTOOLCHAIN=local go build -mod=readonly -trimpath -o file-share .
+./file-share -h
 ```
 
-`flake.lock` pins nixpkgs/toolchain. `go.mod` and `go.sum` pin Go dependencies; the flake's `vendorHash` fixes their vendored contents for sandboxed builds. The dev shell sets `GOTOOLCHAIN=local` so Go cannot silently download a different compiler. Optional direnv: inspect `.envrc`, then `direnv allow`.
+This build needs no C compiler. The resulting binary needs neither Go nor Nix at runtime, nor a separate SQLite library. The CGO-disabled Linux amd64/arm64 builds have no dynamic loader or shared-library dependency. That does not make them cross-platform: use the matching CPU architecture, a compatible kernel/security policy, readable content/config and writable state. Other build settings may produce different linking requirements. See [systemd installation](docs/systemd.md) for host setup and verification limits.
 
-For NixOS, see [NixOS service configuration and VM check](docs/nixos.md). The flake exports `nixosModules.default`; credentials stay in runtime files outside the Nix store, and the module does not configure public ingress.
-
-For installation without Nix, see [Linux binary, Go-source build and systemd](docs/systemd.md). It includes a dedicated service identity, private state, read-only content/config, and manual update/recovery steps; the reference unit is `dist/file-share.service`.
+Browser access requires **trusted HTTPS through a reverse proxy**; the app serves HTTP, not TLS. Keep its listener private. Before public exposure, configure the [required ingress controls](SECURITY.md#public-ingress-requirements).
 
 ## Configure and run
 
-Keep served files, credentials and writable SQLite state separate. Never put credentials, the database or backups beneath the served root.
+Keep served files, credentials and writable SQLite state separate. Never put credentials, state or backups beneath the served root.
 
 ```sh
 install -d -m 700 config state
 cp auth.example.json config/auth.json
 chmod 600 config/auth.json
-nix run . -- -hash-password
+./file-share -hash-password
 ```
 
-The last command reads a password from stdin and prints a bcrypt hash. Finish input with EOF; one trailing LF or CRLF is removed. Password must be 12–72 bytes; oversized input is rejected, not silently truncated. Use a trusted, non-logging terminal/input source; terminal input may echo. Do not put it in command-line arguments or shell history. Edit `config/auth.json` with your username and generated `password_hash`; the example placeholder is not usable authentication. Never commit real credentials or hashes.
+The last command reads a password from stdin and prints a bcrypt hash. End input with EOF; one trailing LF or CRLF is removed. Passwords must be 12–72 bytes; oversized input is rejected. Use a trusted, non-logging input source: terminal input may echo. Never put passwords in command arguments or shell history. Replace the example username and unusable `password_hash` placeholder in `config/auth.json`; never commit credentials or hashes.
 
 ```sh
-nix run . -- \
+./file-share \
   -listen 127.0.0.1:8080 \
   -root /absolute/path/to/shared-files \
   -database "$PWD/state/shares.db" \
@@ -54,56 +53,39 @@ nix run . -- \
   -origin https://files.example.com
 ```
 
-Replace the root and HTTPS origin. Put a TLS reverse proxy in front of the loopback listener, routing that origin to `127.0.0.1:8080`. `-origin` is required, with no path or trailing slash. Login uses Secure cookies and exact Origin checks: plain HTTP is not a supported browser setup. The app itself serves HTTP, not TLS.
+Replace the root and origin. Route that HTTPS origin through your reverse proxy to `127.0.0.1:8080`. The origin must have no path or trailing slash. Secure cookies and exact Origin checks mean plain HTTP browser login is unsupported.
 
-`-version` prints version and source revision without reading configuration. Local release candidates embed these values; ordinary builds report `dev (unknown)`.
+Defaults are listen `:8080`, root `/data`, database `/state/shares.db` and auth `/config/auth.json`; origin is required. Prefer explicit loopback binding outside an isolated container network. `-healthcheck` probes only `127.0.0.1:8080`; query `/healthz` yourself for other ports. `-version` prints build identity (ordinary builds report `dev (unknown)`).
 
-Defaults: listen `:8080`, root `/data`, database `/state/shares.db`, auth `/config/auth.json`. Prefer explicit loopback binding unless an isolated container network requires otherwise. `-healthcheck` probes HTTP readiness at `127.0.0.1:8080` only; for custom ports query `/healthz` yourself.
+SIGTERM or Ctrl-C allows active requests up to 30 seconds to finish, then closes remaining connections and logs the timeout. Unfinished downloads are interrupted. Give service managers a stop timeout longer than 30 seconds.
 
-SIGTERM or Ctrl-C stops accepting connections and allows active requests up to 30 seconds to finish. After that deadline, remaining connections are closed and the timeout is logged; unfinished downloads are interrupted. Configure any service manager's stop timeout longer than 30 seconds.
-
-For a standalone container installation, use [Compose with Caddy](docs/compose.md), `compose.yaml` and `compose.env.example`. It includes non-root services, read-only files/credentials, writable isolated state, HTTPS and a disposable smoke test. Ingress defaults to loopback; public exposure needs the additional controls in `SECURITY.md`. The image defaults to UID/GID `999:993`; Compose can select another non-root host identity with matching mount permissions. Nix builds do not need Docker.
+Next: [create and revoke a share](docs/usage.md), then review [credential rotation, backups and upgrades](docs/operations.md).
 
 ## Sharing and security
 
-- Owner sessions last 12 hours and live in memory. Restart/password reset logs out all sessions. Global login limit: 10 attempts/minute; at most 32 owner sessions.
-- Share regular files or folders for 1 hour, 1 day, 7 days, 30 days, custom duration in whole seconds (1–315360000, up to 10 years), or forever. Owner Shares view copies and revokes links.
-- Name, Size and Modified buttons sort the whole directory; repeat to reverse the primary sort. Earlier sort choices break ties. Opening a directory moves focus to the filter.
-- Folder shares are live: future children and replacements at the same path become shared. Renames/deletions break paths. Direct links use `/s/<token>/subfolder/file`.
-- Anyone holding a link can use or forward it. Expiry/revoke checks apply to new listings, downloads, HEAD and range requests; running transfers may finish. Downloaded copies cannot be recalled.
-- Linux `openat2` confines access beneath the root and rejects symlinks, with no unsafe fallback. Writers to the served tree remain trusted to replace content or add mounts.
-- Active HTML/SVG content downloads as attachments; media streams normally. Responses set no-store/no-referrer. Browser writes require exact Origin and a custom header. No API CORS or forwarded-IP trust.
-- Public ingress protection belongs in your reverse proxy. See the [Caddy rate-limit example](docs/compose.md#caddy-rate-limit-example); configure remaining ingress controls and any VPN/allowlist separately. Proxies may log bearer URLs: restrict/redact logs.
+- Choose 1 hour, 1 day, 7 days (default), 30 days or Never in the share dialog. Copy and revoke links from **Shares**. [Usage](docs/usage.md) covers sorting, filtering and keyboard navigation.
+- Anyone with a link can use or forward it. Folder shares include future children and replacements at the same path; renames/deletions break paths. Revocation/expiry blocks new listings, downloads, HEAD and range requests, not transfers already running or copies already downloaded.
+- Owner sessions last 12 hours and live in memory. Restart/password changes log out sessions, **not shares**. Login is limited globally to 10 attempts/minute and 32 sessions. [Password hashing rationale](SECURITY.md#password-hashing) explains bcrypt compatibility.
+- Only regular files and directories are served. Symlinks are rejected, but writers to the served tree remain trusted to replace content, create hard links or add mounts. Run unprivileged with read-only content/config.
+- Active HTML/SVG content downloads as attachments; media can stream. Responses use no-store/no-referrer. Browser writes require exact Origin and a custom header; there is no API CORS or forwarded-IP trust. Proxies can log bearer URLs: restrict or redact logs.
+- Directory size and active transfers have no global cap. The browser retains the whole listing even though only visible rows are mounted. Public ingress must bound active requests/connections and stalled readers without cutting off progressing long downloads. See [security and resource limits](SECURITY.md).
+- SQLite stores bearer tokens. Protect state and backups like credentials. Never copy only an active database file. Restoring old state can resurrect revoked links; follow the [stopped backup and restricted restore procedure](docs/operations.md).
 
-Large directories have no entry-count cap. The server reads 256 entries at a time and streams the JSON listing, stopping on cancellation or write failure. The browser still loads the whole listing for global filtering/sorting; its memory use grows with directory size. Complete 100,000-entry listings are tested, not a guarantee for every client or filesystem.
+## Optional Nix build
 
-The file list scrolls continuously, mounting only visible rows plus a small buffer and one retained focus row. Tab/Shift+Tab reaches offscreen links and actions; on a filename, Arrow Up/Down moves between entries and Home/End jumps to the first/last entry. Filtering and sorting cover the whole directory and reset scroll to the top. Use the filter rather than browser Find for unmounted filenames.
+Nix supplies a pinned build/development environment; it is not a runtime requirement for the binary. With flakes enabled:
 
-Public ingress must bound active requests/connections and stalled readers; the app has no global transfer cap or response write-idle deadline. See [SECURITY.md](SECURITY.md) for threat boundaries, enforced limits, measured workloads and vulnerability/reporting policy. Do not use a short total response timeout that breaks progressing long downloads.
+```sh
+nix build                  # result/bin/file-share
+./result/bin/file-share -h
+```
 
-SQLite stores share bearer tokens. Protect its directory and backups like credentials. Copying an active database file alone is unsafe. Restoring an old database can resurrect revoked links; password changes do not revoke shares. Follow the [stopped backup, isolated restore and upgrade procedure](docs/operations.md), including re-revocation before reopening ingress.
+Use `./result/bin/file-share` in place of `./file-share` above. The flake targets x86_64-linux and aarch64-linux; cross-building or evaluation alone does not verify ARM runtime behavior. For a managed NixOS service, use the [module guide](docs/nixos.md); keep credentials outside the Nix store.
 
 ## Development
 
-```sh
-nix develop -c go test -race ./...
-nix develop -c go vet ./...
-nix build
-nix flake check
-```
-
-`FILE_SHARE_BROWSER_FIXTURE=1 go test -run '^TestBrowserFixture$' -v` (inside `nix develop`) starts an opt-in temporary HTTPS fixture for manual UI checks. It uses synthetic files and test-only credentials from `server_test.go`. Stop with SIGTERM; never use production files or expose it publicly. Automated tests are not visual/browser evidence.
-
-Run the pinned vulnerability scan described in [CONTRIBUTING.md](CONTRIBUTING.md) before releases and after security updates. Scan errors are not a clean result.
-
-For dependency updates, change `go.mod`/`go.sum`, recompute `vendorHash` using Nix's reported fixed-output hash, and rerun checks. Update `flake.lock` deliberately with `nix flake update`. Keep Go version compatible with `go.mod`.
-
-## Extraction boundary
-
-Source snapshot: `/srv/docker/networks/torrent/file-share` at parent commit `0baa81a3718cde53484add65906bee889efc6f75`. This repository is independent: no runtime path or symlink points back to that installation. Source history was not imported. The installation's credentials, databases, networks, proxy configuration and `stack_test.py` deployment assertions are intentionally excluded. The previous default hostname was replaced by an explicit `-origin` requirement. Existing Go tests and embedded UI are retained.
-
-Creating or building this repository does not migrate, stop or update the existing service. No remote repository or publication is implied.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for tests, browser fixtures, reproducible builds, dependency/toolchain updates and vulnerability scans. [Release checks](docs/releases.md) cover packaging and architecture verification. Building this independent repository does not migrate or update an existing installation; [source provenance](THIRD_PARTY_NOTICES.md#project-source) records its extraction boundary.
 
 ## License
 
-Project-owned code and UI: [MIT](LICENSE), copyright (c) 2026 xmoforf. See [source provenance and third-party notices](THIRD_PARTY_NOTICES.md) for the owner's imported-code attestation and dependency terms. Redistribute `LICENSE`, `THIRD_PARTY_NOTICES.md` and `licenses/` with source or binary releases. Nix and Docker packages include these notices; plain `go build` requires bundling them separately.
+Project-owned code and UI: [MIT](LICENSE), copyright (c) 2026 xmoforf. Redistribute `LICENSE`, [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and `licenses/` with source or binaries. Nix and Docker packages include these notices; plain `go build` requires bundling them separately.

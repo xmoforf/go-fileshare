@@ -1,6 +1,20 @@
 # Contributing
 
-Use `nix develop` on Linux. See [README.md](README.md) for configuration and security boundaries, and [AGENTS.md](AGENTS.md) for Beads/Pi workflow. Use applicable Pi planning, test-driven-development and verification-before-completion skills. Keep changes small; add regression tests before behavior changes.
+Develop on Linux with Go compatible with `go.mod`; `nix develop` supplies the pinned toolchain. See [README.md](README.md) for configuration and security boundaries, and [AGENTS.md](AGENTS.md) for Beads/Pi workflow. Keep changes small; add regression tests before behavior changes.
+
+## Reproducible builds and updates
+
+`flake.lock` pins nixpkgs and the Go 1.27.3 toolchain. `go.mod`/`go.sum` select and verify Go dependencies; the flake's `vendorHash` fixes vendored contents for sandboxed builds. Pinning build inputs does not impose Nix on the runtime host or prove byte-for-byte reproducibility across arbitrary build settings.
+
+```sh
+nix develop                 # pinned Go + GCC (race tests) + Git
+nix build                   # CGO-disabled package, including Go tests and notices
+nix run . -- -h
+```
+
+The shell sets `GOTOOLCHAIN=local` to prevent silent compiler downloads. Optional direnv: inspect `.envrc`, then `direnv allow`. Direct source builds need neither Nix nor a C compiler; race tests require CGO and a C compiler.
+
+For dependency updates, change `go.mod`/`go.sum`, recompute `flake.nix`'s `vendorHash` using Nix's reported fixed-output hash, and rerun checks. Update `flake.lock` deliberately with `nix flake update`; keep Go compatible with `go.mod`. The flake targets x86_64-linux and aarch64-linux. Evaluation and cross-compilation are not native ARM runtime checks.
 
 ## Test Commands
 
@@ -21,9 +35,9 @@ NixOS module changes require `nix build .#checks.x86_64-linux.service --print-bu
 
 Format Go changes with `gofmt`. Do not weaken Linux confinement or HTTPS origin checks to simplify tests. Tests use temporary synthetic data, never live credentials or shares.
 
-For UI regressions, start the opt-in HTTPS fixture described in README, log in with its test-only owner account, then open `/#/folder/`. It contains 208 synthetic entries. `ui_browser_test.js` defines `checkUI(page)` for a Playwright-compatible browser session; no package install is needed. In Pi's browser tool, submit the function from this file followed by `return await checkUI(page);`. Do not evaluate fetched code; the browser sandbox disables string-based code generation.
+For UI regressions, run `FILE_SHARE_BROWSER_FIXTURE=1 go test -run '^TestBrowserFixture$' -v` inside `nix develop`. This starts an opt-in temporary HTTPS fixture with test-only credentials from `server_test.go`; stop it with SIGTERM. Never use production files or expose it publicly. Log in with its test-only owner account, then open `/#/folder/`. It contains 208 synthetic entries. `ui_browser_test.js` defines `checkUI(page)` for a Playwright-compatible browser session; no package install is needed. In Pi's browser tool, submit the function from this file followed by `return await checkUI(page);`. Do not evaluate fetched code; the browser sandbox disables string-based code generation.
 
-It exercises native Enter/Space, forward/backward Tab across virtual rows, Home/End, distant-scroll focus retention, full-list filtering, duration validation and creation of a one-second synthetic share. A temporary test-only button after the list checks Tab exit without relying on engine-specific browser-chrome focus behavior. Repeat at desktop and narrow viewport sizes; inspect focus visibility, layout and accessible names separately. This is not a screen-reader certification or a cross-engine pass.
+It exercises native Enter/Space, forward/backward Tab across virtual rows, Home/End, distant-scroll focus retention, full-list filtering, preset-only expiry controls and creation of shares with all four finite presets. The cross-engine runner also checks Never, recipient access and revocation. A temporary test-only button after the list checks Tab exit without relying on engine-specific browser-chrome focus behavior. Repeat at desktop and narrow viewport sizes; inspect focus visibility, layout and accessible names separately. This is not a screen-reader certification or a cross-engine pass.
 
 ## Operator rehearsal
 
@@ -64,7 +78,5 @@ scanner=$(nix build --no-link --print-out-paths --impure --expr \
 ```
 
 Network access is needed for the vulnerability database. Retain tool/compiler versions, database update date and output; an unavailable database/tool is a release-check blocker. Assess module-only findings separately from imported-package/reachable-symbol findings. See [SECURITY.md](SECURITY.md) for the current result and reporting limitations. The scanner covers Go source dependencies, not host/proxy/image vulnerabilities.
-
-Go dependencies live in `go.mod`/`go.sum`; update the Nix `vendorHash` when those change. Toolchain updates belong in `flake.nix`/`flake.lock`. No global Go install is required.
 
 Only task-owned changes belong in commits. Publication, deployment and Git remote operations require separate approval. The owner approved MIT for project-owned code; third-party terms remain separate. When upgrading Go or modules, refresh the exact upstream notices and inventory in `THIRD_PARTY_NOTICES.md` and `licenses/`, run `go mod verify`, and check notices are included in package/release outputs. New imported code/assets need explicit provenance and compatible terms; do not infer rights from availability.
