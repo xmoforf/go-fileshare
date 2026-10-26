@@ -38,16 +38,16 @@ Run the pinned [vulnerability scan](../CONTRIBUTING.md#pinned-vulnerability-scan
 
 ## Build local artifacts
 
-Commit reviewed source first. The packager refuses tracked changes and existing output paths. Untracked files are excluded by `git archive HEAD`, so local secrets and unrelated review artifacts cannot enter the build. Use a new output directory outside the checkout:
+Commit reviewed source first. The packager refuses tracked changes and existing output paths. Use an archive-capable Buildx builder: the default Docker driver with a classic image store cannot export archive files. Select an existing approved builder with `BUILDX_BUILDER`; do not change host Docker storage settings to make the check pass. Creating a `docker-container` builder starts a privileged BuildKit container and cache volume and requires explicit local approval. After approval, `docker buildx create --name file-share-release --driver docker-container` creates one without switching the global default. Retain it until cleanup is separately approved. Untracked files are excluded by `git archive HEAD`, so local secrets and unrelated review artifacts cannot enter the build. Use a new output directory outside the checkout:
 
 ```sh
-nix develop -c python3 scripts/release.py v0.1.0-rc.1 /tmp/file-share-v0.1.0-rc.1
+BUILDX_BUILDER=file-share-release nix develop -c python3 scripts/release.py v0.1.0-rc.1 /tmp/file-share-v0.1.0-rc.1
 python3 tests/release_artifacts.py /tmp/file-share-v0.1.0-rc.1
 cd /tmp/file-share-v0.1.0-rc.1
 sha256sum -c SHA256SUMS
 ```
 
-For each of Linux amd64 and arm64 this writes a `.tar.gz` archive and `.docker.tar` image archive (Docker save format). Images are built from the same static binary in the matching archive; no foreign executable runs during image assembly. The Docker exporter works with the ordinary Buildx Docker driver; no extra builder is needed. No image is loaded, pushed or tagged in a registry. Archives include binary, notices, install/operations guides and release notes. Images contain binary and notices, non-root UID/GID `999:993`, and `/file-share` entrypoint. Build workspace and partial output remain on failure; no `SHA256SUMS` is written until all builds succeed. Fix failures and use a new output path, rather than treating partial output as a candidate.
+For each of Linux amd64 and arm64 this writes a `.tar.gz` archive and `.docker.tar` image archive (Docker save format). Images are built from the same static binary in the matching archive; no foreign executable runs during image assembly. Buildx must support Docker archive export; the named `docker-container` builder does. No image is loaded, pushed or tagged in a registry. Archives include binary, notices, install/operations guides and release notes. Images contain binary and notices, non-root UID/GID `999:993`, and `/file-share` entrypoint. Build workspace and partial output remain on failure; no `SHA256SUMS` is written until all builds succeed. Fix failures and use a new output path, rather than treating partial output as a candidate.
 
 `build.json` records explicit version, commit, compiler and target platforms. `runtime_verified` deliberately starts empty: successful cross-compilation is not runtime evidence. Plain source/Nix/Compose builds report `dev (unknown)` unless linker metadata is explicitly set. Version names do not create Git tags or promise reproducible byte-identical archives.
 
