@@ -2,6 +2,19 @@
 
 Single-owner file browser and expiring file/folder links. Embedded browser UI, bcrypt login, SQLite share storage, streaming and HTTP range requests. No external UI assets or database server.
 
+## Choose an installation
+
+| Path | Guide |
+|---|---|
+| Docker Engine + Compose, with Caddy HTTPS | [Compose installation](docs/compose.md) |
+| Linux binary or Go source, with systemd | [Binary/source installation](docs/systemd.md) |
+| NixOS service module | [NixOS installation](docs/nixos.md) |
+| Nix package / local CLI | [Requirements and build](#requirements-and-build), then [configure and run](#configure-and-run) |
+
+Start from a reviewed source revision; these guides do not imply published binaries/images exist. All paths require Linux and trusted HTTPS for browser use. Public exposure additionally requires [ingress controls](SECURITY.md#public-ingress-requirements).
+
+After installation: [browse/share/revoke](docs/usage.md), [rotate credentials, back up, restore and upgrade](docs/operations.md), and [security limits](SECURITY.md).
+
 ## Requirements and build
 
 Linux 5.6+ with `openat2` support is required; symlinks and special files are excluded. Nix with flakes enabled provides Go 1.27.3 and development tools. Flake targets: x86_64-linux and aarch64-linux; ARM build/runtime requires separate verification, not just evaluation.
@@ -66,7 +79,7 @@ The file list scrolls continuously, mounting only visible rows plus a small buff
 
 Public ingress must bound active requests/connections and stalled readers; the app has no global transfer cap or response write-idle deadline. See [SECURITY.md](SECURITY.md) for threat boundaries, enforced limits, measured workloads and vulnerability/reporting policy. Do not use a short total response timeout that breaks progressing long downloads.
 
-SQLite stores share bearer tokens. Protect its directory and backups like credentials. Back up with SQLite online backup or while stopped, retaining file permissions and credentials. Copying an active database file alone is unsafe. Restoring an old database can resurrect revoked links. Password changes do not revoke shares.
+SQLite stores share bearer tokens. Protect its directory and backups like credentials. Copying an active database file alone is unsafe. Restoring an old database can resurrect revoked links; password changes do not revoke shares. Follow the [stopped backup, isolated restore and upgrade procedure](docs/operations.md), including re-revocation before reopening ingress.
 
 ## Development
 

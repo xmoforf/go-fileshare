@@ -67,6 +67,8 @@ The service has no capabilities, cannot gain privileges, hides home directories/
 
 SIGTERM drains requests for up to 30 seconds; systemd allows 45 seconds. Restart/update clears owner sessions but retains shares and revocations. Password changes require restart and do not revoke shares. For updates, review compatibility, stop the service and privately back up credentials plus the **whole stopped state directory** before applying a new pinned input. Follow [backup/recovery cautions](systemd.md#restart-update-and-recovery). NixOS generation rollback switches code/config, not SQLite state; restoring an old database can reactivate revoked links. No automatic schema downgrade is promised.
 
+See [operator procedures](operations.md) for credential recovery, stopped backup, restricted restore and revocation reconciliation, and the [owner/recipient walkthrough](usage.md) for first-use verification. Retain the previous package closure as well as the host configuration/lock; generation rollback alone is not a state backup.
+
 ## Verification and architecture scope
 
 ```sh

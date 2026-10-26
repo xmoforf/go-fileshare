@@ -86,6 +86,8 @@ For a binary update, first build/verify the candidate and review compatibility/r
 
 If startup fails, stop the service and inspect logs; keep the failed candidate and current state for diagnosis. Restore the old binary only when it is compatible with current state. Restoring an old database can **reactivate revoked links** and discard newer changes. Do not restore old state automatically: assess exposure and revoke affected links before reopening access. No automatic schema downgrade or universal rollback compatibility is promised.
 
+See [operator procedures](operations.md) for credential recovery, concrete stopped backups, staged restores and revocation reconciliation, and the [owner/recipient walkthrough](usage.md) for first-use checks.
+
 ## Verification scope
 
 Rehearsed on Debian 13 amd64, systemd 257 and Linux 6.12 with the official Go 1.27.3 compiler, without Nix in the guest. Other distributions/architectures still need their own runtime check. `RestrictSUIDSGID` is deliberately omitted: on systemd 257 it rejects mandatory `openat2`; `NoNewPrivileges` and the other sandbox controls remain enabled.

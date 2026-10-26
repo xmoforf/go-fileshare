@@ -23,6 +23,20 @@ For UI regressions, start the opt-in HTTPS fixture described in README, log in w
 
 It exercises native Enter/Space, forward/backward Tab across virtual rows, Home/End, distant-scroll focus retention, full-list filtering, duration validation and creation of a one-second synthetic share. Repeat at desktop and narrow viewport sizes; inspect focus visibility, layout and accessible names separately. This is not a screen-reader certification or a cross-engine pass.
 
+## Operator rehearsal
+
+```sh
+nix build
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_operations.py'
+python3 tests/operations_smoke.py result/bin/file-share
+# Optional: rehearse another locally built candidate without changing installed services.
+python3 tests/operations_smoke.py result/bin/file-share --candidate /absolute/path/to/candidate
+```
+
+Run as non-root with Python 3 and Linux `openat2`. The stdlib-only script starts the supplied binaries on loopback, generates synthetic credentials/content, and retains a printed private temporary directory. It asserts setup/share/revoke, whole stopped-state backup, rotation/session invalidation, restore inventory, known revoked-link resurrection and re-revocation, code replacement/rollback, finite-expiry preservation, expired-link denial and restart persistence. A command-stub test also proves the published restore recipe never promotes a failed copy. It checks server logs for generated credentials/tokens without printing them. Do not use `python -O`: assertions are the checks.
+
+No live config/state, host service, Docker, proxy or public listener is touched. Secure cookies are deliberately replayed over loopback HTTP: this is API/process evidence, not HTTPS/browser evidence. Default candidate is the same binary; two builds of one revision test replacement, not cross-version schema compatibility. A future release needs its own old/new candidate rehearsal. Fixtures remain private for inspection, not automatic deletion. See [operator procedures](docs/operations.md) and [user walkthrough](docs/usage.md).
+
 ## Resource and security checks
 
 ```sh
