@@ -49,14 +49,16 @@ The retained `Dockerfile` is an optional standalone image build, not a deploymen
 
 - Owner sessions last 12 hours and live in memory. Restart/password reset logs out all sessions. Global login limit: 10 attempts/minute; at most 32 owner sessions.
 - Share regular files or folders for 1 hour, 1 day, 7 days, 30 days, custom duration in whole seconds (1–315360000, up to 10 years), or forever. Owner Shares view copies and revokes links.
-- Filter and sort the whole directory; listings show up to 100 items per page. Name, Size and Modified buttons select the primary sort; repeat to reverse it. Earlier sort choices break ties. Tab reaches links and actions without scrolling replacing them. Previous/Next moves focus to the first link on the new page; opening a directory moves focus to the filter.
+- Name, Size and Modified buttons sort the whole directory; repeat to reverse the primary sort. Earlier sort choices break ties. Opening a directory moves focus to the filter.
 - Folder shares are live: future children and replacements at the same path become shared. Renames/deletions break paths. Direct links use `/s/<token>/subfolder/file`.
 - Anyone holding a link can use or forward it. Expiry/revoke checks apply to new listings, downloads, HEAD and range requests; running transfers may finish. Downloaded copies cannot be recalled.
 - Linux `openat2` confines access beneath the root and rejects symlinks, with no unsafe fallback. Writers to the served tree remain trusted to replace content or add mounts.
 - Active HTML/SVG content downloads as attachments; media streams normally. Responses set no-store/no-referrer. Browser writes require exact Origin and a custom header. No API CORS or forwarded-IP trust.
 - This project adds no VPN, proxy allowlist or public-ingress protection. Configure those separately. Proxies may log bearer URLs: restrict/redact logs.
 
-Large directories have no entry-count cap. The server reads 256 entries at a time and streams the JSON listing, stopping on cancellation or write failure. The browser still loads the whole listing for global filtering/sorting; its memory use grows with directory size. Complete 50,000-entry listings are tested, not a guarantee for every client or filesystem.
+Large directories have no entry-count cap. The server reads 256 entries at a time and streams the JSON listing, stopping on cancellation or write failure. The browser still loads the whole listing for global filtering/sorting; its memory use grows with directory size. Complete 100,000-entry listings are tested, not a guarantee for every client or filesystem.
+
+The file list scrolls continuously, mounting only visible rows plus a small buffer and one retained focus row. Tab/Shift+Tab reaches offscreen links and actions; on a filename, Arrow Up/Down moves between entries and Home/End jumps to the first/last entry. Filtering and sorting cover the whole directory and reset scroll to the top. Use the filter rather than browser Find for unmounted filenames.
 
 Public ingress must bound active requests/connections and stalled readers; the app has no global transfer cap or response write-idle deadline. See [SECURITY.md](SECURITY.md) for threat boundaries, enforced limits, measured workloads and vulnerability/reporting policy. Do not use a short total response timeout that breaks progressing long downloads.
 

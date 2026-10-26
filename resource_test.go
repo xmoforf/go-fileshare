@@ -150,7 +150,7 @@ func TestResourceListingCancellation(t *testing.T) {
 func TestResourceLargeListing(t *testing.T) {
 	a, root, _ := fixture(t)
 	cookie := login(t, a)
-	const count = 50000
+	const count = 100000
 	if err := os.Mkdir(filepath.Join(root, "large"), 0700); err != nil {
 		t.Fatal(err)
 	}

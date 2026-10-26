@@ -15,7 +15,7 @@ Format Go changes with `gofmt`. Do not weaken Linux confinement or HTTPS origin 
 
 For UI regressions, start the opt-in HTTPS fixture described in README, log in with its test-only owner account, then open `/#/folder/`. It contains 208 synthetic entries. `ui_browser_test.js` defines `checkUI(page)` for a Playwright-compatible browser session; no package install is needed. In Pi's browser tool, submit the function from this file followed by `return await checkUI(page);`. Do not evaluate fetched code; the browser sandbox disables string-based code generation.
 
-It exercises native Enter/Space/Tab, scrolling focus, pagination/filter boundaries, duration validation and creation of a one-second synthetic share. Repeat at desktop and narrow viewport sizes; inspect focus visibility, layout and accessible names separately. This is not a screen-reader certification or a cross-engine pass.
+It exercises native Enter/Space, forward/backward Tab across virtual rows, Home/End, distant-scroll focus retention, full-list filtering, duration validation and creation of a one-second synthetic share. Repeat at desktop and narrow viewport sizes; inspect focus visibility, layout and accessible names separately. This is not a screen-reader certification or a cross-engine pass.
 
 ## Resource and security checks
 
@@ -24,11 +24,11 @@ nix develop -c go test -count=1 -v -run '^TestResource' .
 nix develop -c go test -run '^$' -bench '^Benchmark(DirectoryListing|LoginCost12)$' -benchtime=3x -benchmem .
 ```
 
-Tests create synthetic 50,000-entry directories and sparse 64 MiB files; they verify cancellation, full owner/bearer listings, stalled-reader cleanup, SQL pool waits and login/session budgets. Benchmarks discard response bytes to exclude client-side buffering. `B/op` is cumulative allocation, not peak memory. Do not infer a safe global concurrency limit from one host's timings.
+Tests create synthetic 100,000-entry directories and sparse 64 MiB files; they verify cancellation, full owner/bearer listings, stalled-reader cleanup, SQL pool waits and login/session budgets. Benchmarks discard response bytes to exclude client-side buffering. `B/op` is cumulative allocation, not peak memory. Do not infer a safe global concurrency limit from one host's timings.
 
 For profiles, add `-cpuprofile=/tmp/file-share-cpu.pprof -memprofile=/tmp/file-share-mem.pprof -blockprofile=/tmp/file-share-block.pprof -mutexprofile=/tmp/file-share-mutex.pprof -o /tmp/file-share.test` to the benchmark/test command, then use `nix develop -c go tool pprof -top /tmp/file-share.test /tmp/file-share-cpu.pprof`. Profiles include fixture setup; use benchmark timings for per-operation cost. Profile before changing concurrency.
 
-Use `FILE_SHARE_BROWSER_FIXTURE=large` instead of `1` for a 50,000-entry browser fixture. Verify 50,000 items / 500 pages, filter for `item-49996`, clear the filter and reverse Name sorting. This fixture is separate from `checkUI(page)`'s fixed 208-entry assertions. Browser memory still scales with the full array; report engine, viewport, heap API limitations and storage/network conditions.
+Use `FILE_SHARE_BROWSER_FIXTURE=large` instead of `1` for a 100,000-entry browser fixture. Verify 100,000 items, scroll to the middle/end, filter for `item-99996`, clear the filter and reverse Name sorting. Mounted rows should stay within `ceil(scrollWrap.clientHeight / 36) + 12` (visible rows, overscan and one pinned row), not scale with directory size. Focus a link/copy/share action, scroll far away, resize, then verify the same node retains focus; also close a row's share dialog after scrolling and verify focus restoration. This fixture is separate from `checkUI(page)`'s fixed 208-entry assertions. Browser memory still scales with the full array; report engine, viewport, heap API limitations and storage/network conditions. Fixed-height single-line rows are tested at 100k, not beyond browser scroll-height limits or with every assistive technology.
 
 ### Pinned vulnerability scan
 

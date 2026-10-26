@@ -19,7 +19,7 @@ func TestBrowserFixture(t *testing.T) {
 	a, root, _ := fixture(t)
 	count := 205
 	if mode == "large" {
-		count = 49997 // Together with the three fixture entries: 50,000.
+		count = 99997 // Together with the three fixture entries: 100,000.
 	}
 	for i := 0; i < count; i++ {
 		name := filepath.Join(root, "folder", fmt.Sprintf("item-%03d.txt", i))

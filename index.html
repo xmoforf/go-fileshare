@@ -134,14 +134,16 @@
   .col-size { width: 110px; text-align: right; }
   .col-date { width: 180px; text-align: right; }
 
-  /* ---- Paged listing ---- */
+  /* ---- Virtual listing ---- */
   .scroll-wrap {
     flex: 1;
     overflow-y: auto;
     position: relative;
     min-height: 0;
   }
-  .pagination { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 8px 0; }
+  #viewport { position: relative; overflow-anchor: none; --row-height: 36px; }
+  #viewport .row { position: absolute; width: 100%; height: var(--row-height); }
+  .row a:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
   button:disabled { opacity: 0.5; cursor: default; }
 
   /* ---- Rows ---- */
@@ -260,13 +262,8 @@
   <button type="button" class="col-date" data-sort="date">Modified</button>
 </div>
 <div class="scroll-wrap" id="scrollWrap">
-  <div id="viewport"></div>
+  <div id="viewport" role="list" aria-label="Files"></div>
 </div>
-<nav class="pagination" id="pagination" aria-label="File pages" hidden>
-  <button type="button" class="action" id="previousPage">Previous</button>
-  <span id="pageStatus" role="status"></span>
-  <button type="button" class="action" id="nextPage">Next</button>
-</nav>
 
 <dialog id="loginDialog" aria-labelledby="loginTitle">
   <form id="loginForm">
@@ -402,7 +399,7 @@
   }
   document.getElementById('manageShares').addEventListener('click', function() { sharesDialog.showModal(); refreshShares(); });
 
-  var PAGE_SIZE = 100;
+  var OVERSCAN = 5;
   var STORAGE_PREFIX = window.location.pathname.replace(/\/$/, '');
   var STORAGE_SORT_KEY = STORAGE_PREFIX + ':sort';
   var STORAGE_THEME_KEY = STORAGE_PREFIX + ':theme';
@@ -444,9 +441,7 @@
   // ---- Elements (cached early — sort stack init needs theadEl) ----
   var scrollWrap = document.getElementById('scrollWrap');
   var viewport = document.getElementById('viewport');
-  var pagination = document.getElementById('pagination');
-  var previousPage = document.getElementById('previousPage');
-  var nextPage = document.getElementById('nextPage');
+  var rowHeight = parseFloat(getComputedStyle(viewport).getPropertyValue('--row-height'));
   var searchInput = document.getElementById('search');
   var statsEl = document.getElementById('stats');
   var theadEl = document.getElementById('thead');
@@ -525,7 +520,7 @@
   // ---- State ----
   var allItems = [];
   var filtered = [];
-  var pageIndex = 0;
+  var pinnedRow = null;
 
   // ---- Breadcrumbs ----
   function renderBreadcrumbs() {
@@ -549,7 +544,6 @@
     scrollWrap.querySelectorAll('.status').forEach(function(el) { el.remove(); });
     var dir = getDirFromHash();
 
-    pagination.hidden = true;
     viewport.style.display = 'none';
     var loadingEl = document.createElement('div');
     loadingEl.className = 'status';
@@ -617,36 +611,81 @@
       ? filtered.length + ' items'
       : filtered.length + ' / ' + allItems.length + ' items';
 
-    pageIndex = 0;
-    renderPage();
+    pinnedRow = null;
+    viewport.replaceChildren();
+    viewport.style.height = filtered.length * rowHeight + 'px';
+    scrollWrap.scrollTop = 0;
+    renderVisible();
   }
 
-  // ---- Pagination: scrolling never replaces focused rows ----
-  function renderPage() {
-    var start = pageIndex * PAGE_SIZE;
-    var end = Math.min(filtered.length, start + PAGE_SIZE);
-
-    var frag = document.createDocumentFragment();
+  // Keep the focused row mounted, including its dialog's return-focus target.
+  function renderVisible() {
+    var start = Math.max(0, Math.floor(scrollWrap.scrollTop / rowHeight) - OVERSCAN);
+    var end = Math.min(filtered.length, Math.ceil((scrollWrap.scrollTop + scrollWrap.clientHeight) / rowHeight) + OVERSCAN);
+    viewport.querySelectorAll('.row').forEach(function(row) {
+      var index = Number(row.dataset.index);
+      if ((index < start || index >= end) && row !== pinnedRow) row.remove();
+    });
+    var next = viewport.firstElementChild;
     var dir = getDirFromHash();
     for (var i = start; i < end; i++) {
-      frag.appendChild(makeRow(filtered[i], dir));
+      while (next && Number(next.dataset.index) < i) next = next.nextElementSibling;
+      if (next && Number(next.dataset.index) === i) {
+        next = next.nextElementSibling;
+        continue;
+      }
+      var row = makeRow(filtered[i], dir);
+      row.dataset.index = i;
+      row.style.top = i * rowHeight + 'px';
+      row.setAttribute('role', 'listitem');
+      row.setAttribute('aria-posinset', i + 1);
+      row.setAttribute('aria-setsize', filtered.length);
+      viewport.insertBefore(row, next);
     }
-
-    viewport.replaceChildren(frag);
-    scrollWrap.scrollTop = 0;
-    previousPage.disabled = pageIndex === 0;
-    nextPage.disabled = end >= filtered.length;
-    pagination.hidden = filtered.length <= PAGE_SIZE;
-    document.getElementById('pageStatus').textContent = 'Page ' + (pageIndex + 1) + ' of ' + Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   }
 
-  previousPage.addEventListener('click', function() { changePage(-1); });
-  nextPage.addEventListener('click', function() { changePage(1); });
-  function changePage(delta) {
-    pageIndex += delta;
-    renderPage();
-    viewport.querySelector('a').focus();
+  var renderFrame;
+  function scheduleRender() {
+    if (renderFrame) return;
+    renderFrame = requestAnimationFrame(function() { renderFrame = null; renderVisible(); });
   }
+  scrollWrap.addEventListener('scroll', scheduleRender);
+  new ResizeObserver(scheduleRender).observe(scrollWrap);
+  viewport.addEventListener('focusin', function(event) {
+    pinnedRow = event.target.closest('.row');
+    scheduleRender();
+  });
+  viewport.addEventListener('keydown', function(event) {
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
+    var row = event.target.closest('.row');
+    if (!row) return;
+    var index = Number(row.dataset.index);
+    var controls = row.querySelectorAll('a, button');
+    var target = index;
+    var last = false;
+    if (event.key === 'Tab') {
+      if (event.shiftKey && event.target === controls[0]) { target--; last = true; }
+      else if (!event.shiftKey && event.target === controls[controls.length - 1]) target++;
+      else return;
+    } else if (event.target.tagName === 'A' && !event.shiftKey) {
+      if (event.key === 'ArrowDown') target++;
+      else if (event.key === 'ArrowUp') target--;
+      else if (event.key === 'Home') target = 0;
+      else if (event.key === 'End') target = filtered.length - 1;
+      else return;
+    } else return;
+    if (target < 0 || target >= filtered.length) return;
+    event.preventDefault();
+    var top = target * rowHeight;
+    if (top < scrollWrap.scrollTop) scrollWrap.scrollTop = top;
+    else if (top + rowHeight > scrollWrap.scrollTop + scrollWrap.clientHeight) {
+      scrollWrap.scrollTop = top + rowHeight - scrollWrap.clientHeight;
+    }
+    renderVisible();
+    var nextRow = viewport.querySelector('[data-index="' + target + '"]');
+    var nextControls = nextRow.querySelectorAll('a, button');
+    nextControls[last ? nextControls.length - 1 : 0].focus({ preventScroll: true });
+  });
 
   function makeRow(item, dir) {
     var div = document.createElement('div');
