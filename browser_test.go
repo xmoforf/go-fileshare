@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"testing"
 )
@@ -14,7 +15,13 @@ func TestBrowserFixture(t *testing.T) {
 	if os.Getenv("FILE_SHARE_BROWSER_FIXTURE") != "1" {
 		t.Skip("interactive browser fixture")
 	}
-	a, _, _ := fixture(t)
+	a, root, _ := fixture(t)
+	for i := 0; i < 205; i++ {
+		name := filepath.Join(root, "folder", fmt.Sprintf("item-%03d.txt", i))
+		if err := os.WriteFile(name, []byte("synthetic browser fixture"), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
 	a.ui = ui
 	server := httptest.NewTLSServer(a)
 	defer server.Close()

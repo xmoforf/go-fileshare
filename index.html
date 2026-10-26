@@ -20,7 +20,6 @@
 <style>
   /* ---- Theme variables ---- */
   :root {
-    --row-h: 36;
     --font: 'Verdana', sans-serif;
   }
   [data-theme="dark"] {
@@ -126,32 +125,30 @@
     border-bottom: 1px solid var(--border);
     user-select: none;
   }
-  .thead span { cursor: pointer; white-space: nowrap; }
-  .thead span:hover { color: var(--text); }
+  .thead button { background: none; border: none; color: inherit; white-space: nowrap; min-height: 36px; }
+  .thead button:hover { color: var(--text); }
+  .thead .col-name { text-align: left; }
   .sort-indicator { font-size: 10px; margin-left: 2px; pointer-events: none; }
   .sort-indicator.secondary { opacity: 0.4; }
   .col-name { flex: 1; }
   .col-size { width: 110px; text-align: right; }
   .col-date { width: 180px; text-align: right; }
 
-  /* ---- Virtual scroll ---- */
+  /* ---- Paged listing ---- */
   .scroll-wrap {
     flex: 1;
     overflow-y: auto;
     position: relative;
     min-height: 0;
   }
-  .scroll-spacer { width: 100%; }
-  .scroll-viewport {
-    position: absolute;
-    top: 0; left: 0; right: 0;
-  }
+  .pagination { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 8px 0; }
+  button:disabled { opacity: 0.5; cursor: default; }
 
   /* ---- Rows ---- */
   .row {
     display: flex;
     align-items: center;
-    height: calc(var(--row-h) * 1px);
+    min-height: 36px;
     padding: 0 10px;
     border-bottom: 1px solid var(--border);
     transition: background 150ms ease;
@@ -250,22 +247,26 @@
 
 <div class="breadcrumbs" id="breadcrumbs"></div>
 <div class="toolbar">
-  <input type="text" id="search" placeholder="Filter files... ( /regex/ )" autofocus>
+  <input type="text" id="search" aria-label="Filter files" placeholder="Filter files... ( /regex/ )" autofocus>
   <div class="stats" id="stats"></div>
   <button class="action" id="shareCurrent" hidden>Share folder</button>
   <button class="action" id="manageShares" hidden>Shares</button>
   <button class="action" id="logout" hidden>Log out</button>
   <button class="theme-toggle" id="themeToggle" title="Toggle light/dark" aria-label="Toggle light/dark mode"></button>
 </div>
-<div class="thead" id="thead">
-  <span class="col-name" data-sort="name">Name</span>
-  <span class="col-size" data-sort="size">Size</span>
-  <span class="col-date" data-sort="date">Modified</span> <!-- sort key "date" maps to mtime -->
+<div class="thead" id="thead" role="group" aria-label="Sort files">
+  <button type="button" class="col-name" data-sort="name">Name</button>
+  <button type="button" class="col-size" data-sort="size">Size</button>
+  <button type="button" class="col-date" data-sort="date">Modified</button>
 </div>
 <div class="scroll-wrap" id="scrollWrap">
-  <div class="scroll-spacer" id="spacer"></div>
-  <div class="scroll-viewport" id="viewport"></div>
+  <div id="viewport"></div>
 </div>
+<nav class="pagination" id="pagination" aria-label="File pages" hidden>
+  <button type="button" class="action" id="previousPage">Previous</button>
+  <span id="pageStatus" role="status"></span>
+  <button type="button" class="action" id="nextPage">Next</button>
+</nav>
 
 <dialog id="loginDialog" aria-labelledby="loginTitle">
   <form id="loginForm">
@@ -285,7 +286,7 @@
       <option value="604800" selected>7 days</option><option value="2592000">30 days</option>
       <option value="custom">Custom duration</option><option value="0">Never</option>
     </select></label>
-    <label id="customLabel" hidden>Hours <input id="customHours" type="number" min="0.016667" max="87600" step="any" value="24"></label>
+    <label id="customLabel" hidden>Seconds <input id="customSeconds" type="number" min="1" max="315360000" step="1" value="86400" disabled></label>
     <p>Anyone with this link can access this item. Folder shares include future files.</p>
     <p id="shareMessage" class="message" role="status"></p>
     <label id="linkLabel" hidden>Share link <input id="shareLink" readonly style="width:100%"></label>
@@ -356,13 +357,14 @@
   document.getElementById('shareCurrent').addEventListener('click', function() { showShare(decodedDir()); });
   document.getElementById('lifetime').addEventListener('change', function() {
     document.getElementById('customLabel').hidden = this.value !== 'custom';
-    document.getElementById('customHours').required = this.value === 'custom';
+    document.getElementById('customSeconds').required = this.value === 'custom';
+    document.getElementById('customSeconds').disabled = this.value !== 'custom';
   });
   document.getElementById('shareForm').addEventListener('submit', async function(event) {
     event.preventDefault();
     var button = document.getElementById('createShare'); button.disabled = true;
     var value = document.getElementById('lifetime').value;
-    var seconds = value === 'custom' ? Math.round(Number(document.getElementById('customHours').value) * 3600) : Number(value);
+    var seconds = Number(value === 'custom' ? document.getElementById('customSeconds').value : value);
     try {
       if (!Number.isSafeInteger(seconds) || seconds < 0 || seconds > 315360000 || (value === 'custom' && seconds < 1)) throw new Error('Choose a duration between 1 second and 10 years.');
       var s = await api('/api/shares', 'POST', {path: selectedPath, seconds: seconds});
@@ -400,8 +402,7 @@
   }
   document.getElementById('manageShares').addEventListener('click', function() { sharesDialog.showModal(); refreshShares(); });
 
-  var ROW_H = 36; // must match --row-h in CSS above
-  var BUFFER = 10;
+  var PAGE_SIZE = 100;
   var STORAGE_PREFIX = window.location.pathname.replace(/\/$/, '');
   var STORAGE_SORT_KEY = STORAGE_PREFIX + ':sort';
   var STORAGE_THEME_KEY = STORAGE_PREFIX + ':theme';
@@ -443,7 +444,9 @@
   // ---- Elements (cached early — sort stack init needs theadEl) ----
   var scrollWrap = document.getElementById('scrollWrap');
   var viewport = document.getElementById('viewport');
-  var spacer = document.getElementById('spacer');
+  var pagination = document.getElementById('pagination');
+  var previousPage = document.getElementById('previousPage');
+  var nextPage = document.getElementById('nextPage');
   var searchInput = document.getElementById('search');
   var statsEl = document.getElementById('stats');
   var theadEl = document.getElementById('thead');
@@ -483,11 +486,14 @@
   function renderSortIndicators() {
     // Clear all indicators
     theadEl.querySelectorAll('.sort-indicator').forEach(function(el) { el.remove(); });
+    theadEl.querySelectorAll('[data-sort]').forEach(function(col) { col.setAttribute('aria-label', col.textContent); });
     // Add indicators per stack position
     for (var i = 0; i < sortStack.length; i++) {
       var col = theadEl.querySelector('[data-sort="' + sortStack[i].key + '"]');
       if (!col) continue;
+      col.setAttribute('aria-label', col.textContent + ', ' + (sortStack[i].asc ? 'ascending' : 'descending') + ', sort priority ' + (i + 1));
       var span = document.createElement('span');
+      span.setAttribute('aria-hidden', 'true');
       span.className = 'sort-indicator' + (i > 0 ? ' secondary' : '');
       span.textContent = sortStack[i].asc ? ' \u25B4' : ' \u25BE';
       col.appendChild(span);
@@ -519,7 +525,7 @@
   // ---- State ----
   var allItems = [];
   var filtered = [];
-  var lastStart = -1, lastEnd = -1;
+  var pageIndex = 0;
 
   // ---- Breadcrumbs ----
   function renderBreadcrumbs() {
@@ -543,7 +549,7 @@
     scrollWrap.querySelectorAll('.status').forEach(function(el) { el.remove(); });
     var dir = getDirFromHash();
 
-    spacer.style.display = 'none';
+    pagination.hidden = true;
     viewport.style.display = 'none';
     var loadingEl = document.createElement('div');
     loadingEl.className = 'status';
@@ -566,7 +572,6 @@
       });
 
       loadingEl.remove();
-      spacer.style.display = '';
       viewport.style.display = '';
 
       applyFilterAndSort();
@@ -612,24 +617,14 @@
       ? filtered.length + ' items'
       : filtered.length + ' / ' + allItems.length + ' items';
 
-    spacer.style.height = (filtered.length * ROW_H) + 'px';
-    lastStart = -1; lastEnd = -1;
-    renderVisible();
+    pageIndex = 0;
+    renderPage();
   }
 
-  // ---- Virtual scroll ----
-  function renderVisible() {
-    var scrollTop = scrollWrap.scrollTop;
-    var viewH = scrollWrap.clientHeight;
-
-    var start = Math.floor(scrollTop / ROW_H) - BUFFER;
-    var end = Math.ceil((scrollTop + viewH) / ROW_H) + BUFFER;
-    start = Math.max(0, start);
-    end = Math.min(filtered.length, end);
-
-    if (start === lastStart && end === lastEnd) return;
-    lastStart = start;
-    lastEnd = end;
+  // ---- Pagination: scrolling never replaces focused rows ----
+  function renderPage() {
+    var start = pageIndex * PAGE_SIZE;
+    var end = Math.min(filtered.length, start + PAGE_SIZE);
 
     var frag = document.createDocumentFragment();
     var dir = getDirFromHash();
@@ -637,9 +632,20 @@
       frag.appendChild(makeRow(filtered[i], dir));
     }
 
-    viewport.style.transform = 'translateY(' + (start * ROW_H) + 'px)';
-    viewport.innerHTML = '';
-    viewport.appendChild(frag);
+    viewport.replaceChildren(frag);
+    scrollWrap.scrollTop = 0;
+    previousPage.disabled = pageIndex === 0;
+    nextPage.disabled = end >= filtered.length;
+    pagination.hidden = filtered.length <= PAGE_SIZE;
+    document.getElementById('pageStatus').textContent = 'Page ' + (pageIndex + 1) + ' of ' + Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  }
+
+  previousPage.addEventListener('click', function() { changePage(-1); });
+  nextPage.addEventListener('click', function() { changePage(1); });
+  function changePage(delta) {
+    pageIndex += delta;
+    renderPage();
+    viewport.querySelector('a').focus();
   }
 
   function makeRow(item, dir) {
@@ -730,12 +736,9 @@
     debounceTimer = setTimeout(applyFilterAndSort, 80);
   });
 
-  // ---- Scroll + resize ----
-  scrollWrap.addEventListener('scroll', renderVisible, { passive: true });
-  window.addEventListener('resize', function() { lastStart = -1; renderVisible(); });
-
   // ---- Hash navigation ----
   window.addEventListener('hashchange', function() {
+    searchInput.focus();
     renderBreadcrumbs();
     load();
   });

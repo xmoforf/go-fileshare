@@ -48,7 +48,8 @@ The retained `Dockerfile` is an optional standalone image build, not a deploymen
 ## Sharing and security
 
 - Owner sessions last 12 hours and live in memory. Restart/password reset logs out all sessions. Global login limit: 10 attempts/minute; at most 32 owner sessions.
-- Share regular files or folders for 1 hour, 1 day, 7 days, 30 days, custom duration (1 second–10 years), or forever. Owner Shares view copies and revokes links.
+- Share regular files or folders for 1 hour, 1 day, 7 days, 30 days, custom duration in whole seconds (1–315360000, up to 10 years), or forever. Owner Shares view copies and revokes links.
+- Filter and sort the whole directory; listings show up to 100 items per page. Name, Size and Modified buttons select the primary sort; repeat to reverse it. Earlier sort choices break ties. Tab reaches links and actions without scrolling replacing them. Previous/Next moves focus to the first link on the new page; opening a directory moves focus to the filter.
 - Folder shares are live: future children and replacements at the same path become shared. Renames/deletions break paths. Direct links use `/s/<token>/subfolder/file`.
 - Anyone holding a link can use or forward it. Expiry/revoke checks apply to new listings, downloads, HEAD and range requests; running transfers may finish. Downloaded copies cannot be recalled.
 - Linux `openat2` confines access beneath the root and rejects symlinks, with no unsafe fallback. Writers to the served tree remain trusted to replace content or add mounts.
