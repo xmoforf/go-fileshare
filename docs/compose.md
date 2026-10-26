@@ -47,6 +47,75 @@ docker compose ps
 
 Caddy is pinned by version and digest; refresh deliberately and rerun the smoke after security updates. The application image is built from the current checkout. For upgrades, record the old image ID and source commit, build/test a distinct local tag via `FILE_SHARE_IMAGE`, and retain the prior image plus a consistent state backup. Do not treat the mutable `:local` tag as rollback history.
 
+## Caddy rate-limit example
+
+Public ingress protection belongs in the reverse proxy, not the Go application. For request-rate controls, build Caddy with [`mholt/caddy-ratelimit`](https://github.com/mholt/caddy-ratelimit). This example adapts an operator-tested Caddy build pattern; it is not a new load-test result for this project. The module is third-party, not part of stock Caddy; its v0.1.0 README labels it work in progress.
+
+Save this as `Dockerfile.caddy` beside `compose.yaml`:
+
+```dockerfile
+FROM public.ecr.aws/docker/library/caddy:2.11.7-builder-alpine@sha256:d718a1d1431403c4a46698f33ad1c0f9dd5dd7fe2bae654d1027d275b6fb5fd7 AS builder
+RUN xcaddy build v2.11.7 \
+    --with github.com/mholt/caddy-ratelimit@v0.1.0
+
+FROM public.ecr.aws/docker/library/caddy:2.11.7-alpine@sha256:24ec7b05bc532c7bb57f727030c5056e257ff7138b4b50460306819ff79362bd
+COPY --from=builder /usr/bin/caddy /usr/bin/caddy
+```
+
+Save this as `compose.ratelimit.yaml`. The override retains the base service's non-root identity, read-only filesystem, private upstream and loopback-only published ports:
+
+```yaml
+services:
+  caddy:
+    image: go-fileshare-caddy:2.11.7-ratelimit-0.1.0
+    build:
+      context: .
+      dockerfile: Dockerfile.caddy
+```
+
+Keep the global block in `Caddyfile`; replace its site block with:
+
+```caddyfile
+{$FILE_SHARE_SITE} {
+    {$FILE_SHARE_TLS}
+    route {
+        rate_limit {
+            zone public_standard {
+                key {remote_host}
+                events 100
+                window 4s
+            }
+        }
+        @login path /api/login
+        rate_limit @login {
+            zone login_limit {
+                key {remote_host}
+                events 5
+                window 1m
+            }
+        }
+        reverse_proxy fileshare:8080
+    }
+}
+```
+
+The ordered `route` applies both sliding-window limits before proxying login requests. Each directly connected client IP gets 100 requests per four seconds across all paths and five login requests per minute. Excess requests receive 429 with Retry-After. These are starting values, not measured capacity; shared NAT clients share a budget. Range requests each consume an event. The app's separate global login budget still applies, so multiple clients can exhaust it; retain a private owner recovery path.
+
+`{remote_host}` uses the socket peer, not an untrusted forwarded header. If another proxy sits in front, all its clients share that peer's limit. Configure narrowly trusted proxy addresses and verified client-IP handling before changing the key; never trust arbitrary incoming forwarded headers. Avoid logging keys or bearer URLs.
+
+Build and validate in a one-off container without starting the serving stack:
+
+```sh
+docker compose -f compose.yaml -f compose.ratelimit.yaml config --quiet
+docker compose -f compose.yaml -f compose.ratelimit.yaml build caddy
+docker compose -f compose.yaml -f compose.ratelimit.yaml run --rm --no-deps -T caddy \
+  caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+```
+
+Use both `-f` arguments for subsequent Compose operations. Starting or replacing a deployment remains an explicit operator action. Keep the previous image/config for rollback. Refresh the Caddy image digests and module version deliberately, then validate again. The existing stock-Caddy smoke test does not exercise this override.
+
+**Rate is not concurrency.** These limits count request arrivals, not active downloads, connections or HTTP/2 streams. Per-IP limiter state also grows with distinct clients. This example does not establish bounded queueing, reserved owner capacity or a response write-idle policy. Keep the [remaining ingress requirements](../SECURITY.md#public-ingress-requirements); do not substitute a short total response timeout that interrupts progressing downloads. Before public exposure, verify those controls and overload, stalled readers, long downloads, Range/HEAD and disconnect propagation on the actual ingress.
+
 ## State and shutdown
 
 ```sh

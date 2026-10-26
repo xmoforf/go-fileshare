@@ -29,7 +29,7 @@ This is a single-owner, read-only file browser, not a multi-tenant storage servi
 
 ### Public ingress requirements
 
-**Do not expose the raw listener to untrusted internet traffic.** The app does not provide DDoS resistance. Before public exposure:
+**Do not expose the raw listener to untrusted internet traffic.** The app does not provide DDoS resistance. Ingress protection is the reverse proxy/operator's responsibility. The [Caddy rate-limit example](docs/compose.md#caddy-rate-limit-example) provides per-client request-rate configuration across all paths and for login, not proof of concurrency or stalled-reader bounds. Before public exposure:
 
 1. Configure finite aggregate active-request and connection budgets, including HTTP/2 streams, bounded queueing and per-client abuse controls at ingress. A connection cap alone does not bound multiplexed requests. Ensure canceled downstream requests cancel upstream work.
 2. Use a response **write-idle/progress** policy for stalled readers that permits continuously progressing long transfers. Do not substitute a short total response timeout. Verify your actual proxy behavior with slow readers, ranges and a long transfer; deployment examples are separate work.

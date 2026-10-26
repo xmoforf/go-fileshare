@@ -73,7 +73,7 @@ For a standalone container installation, use [Compose with Caddy](docs/compose.m
 - Anyone holding a link can use or forward it. Expiry/revoke checks apply to new listings, downloads, HEAD and range requests; running transfers may finish. Downloaded copies cannot be recalled.
 - Linux `openat2` confines access beneath the root and rejects symlinks, with no unsafe fallback. Writers to the served tree remain trusted to replace content or add mounts.
 - Active HTML/SVG content downloads as attachments; media streams normally. Responses set no-store/no-referrer. Browser writes require exact Origin and a custom header. No API CORS or forwarded-IP trust.
-- This project adds no VPN, proxy allowlist or public-ingress protection. Configure those separately. Proxies may log bearer URLs: restrict/redact logs.
+- Public ingress protection belongs in your reverse proxy. See the [Caddy rate-limit example](docs/compose.md#caddy-rate-limit-example); configure remaining ingress controls and any VPN/allowlist separately. Proxies may log bearer URLs: restrict/redact logs.
 
 Large directories have no entry-count cap. The server reads 256 entries at a time and streams the JSON listing, stopping on cancellation or write failure. The browser still loads the whole listing for global filtering/sorting; its memory use grows with directory size. Complete 100,000-entry listings are tested, not a guarantee for every client or filesystem.
 
