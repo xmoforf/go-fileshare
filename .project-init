@@ -1,0 +1,6 @@
+tool: pi
+skill: project-init
+version: pi-1
+initialized_at: 2026-10-26T14:12:24Z
+environment_pattern: .envrc+.envrc.d+flake.nix
+work_tracking: beads

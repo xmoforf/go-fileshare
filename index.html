@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Index</title>
+<script>
+  // Early theme detection to prevent flash
+  (function() {
+    var k = window.location.pathname.replace(/\/$/, '') + ':theme';
+    try {
+      var t = JSON.parse(localStorage.getItem(k));
+      if (t === 'light' || t === 'dark') { document.documentElement.setAttribute('data-theme', t); return; }
+    } catch(e) {}
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+      document.documentElement.setAttribute('data-theme', 'light');
+    }
+  })();
+</script>
+<style>
+  /* ---- Theme variables ---- */
+  :root {
+    --row-h: 36;
+    --font: 'Verdana', sans-serif;
+  }
+  [data-theme="dark"] {
+    --bg: #2f343f;
+    --bg-raised: #3d4351;
+    --bg-input: #262a32;
+    --text: #fff;
+    --text-dim: #9099a3;
+    --border: rgba(255,255,255,0.06);
+    --accent: #6ea8fe;
+    --btn-hover-bg: rgba(255,255,255,0.05);
+  }
+  [data-theme="light"] {
+    --bg: #f5f5f5;
+    --bg-raised: #e8e8e8;
+    --bg-input: #fff;
+    --text: #1a1a1a;
+    --text-dim: #666;
+    --border: rgba(0,0,0,0.08);
+    --accent: #2563eb;
+    --btn-hover-bg: rgba(0,0,0,0.05);
+  }
+
+  /* ---- Base ---- */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; }
+  body {
+    font-family: var(--font);
+    font-size: 14px;
+    line-height: 1.5;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    padding: 20px 5% 0;
+    transition: background 200ms, color 200ms;
+  }
+
+  /* ---- Breadcrumbs ---- */
+  .breadcrumbs {
+    text-align: center;
+    padding: 8px 0 12px;
+    font-size: 1.1em;
+    font-weight: 200;
+  }
+  .breadcrumbs a { color: var(--accent); text-decoration: none; }
+  .breadcrumbs a:hover { text-decoration: underline; }
+  .breadcrumbs .sep { color: var(--text-dim); margin: 0 2px; }
+
+  /* ---- Toolbar ---- */
+  .toolbar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    padding-bottom: 12px;
+  }
+  #search {
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    padding: 8px 12px;
+    font-size: 14px;
+    width: 320px;
+    max-width: 70vw;
+    outline: none;
+    font-family: var(--font);
+    min-height: 36px;
+  }
+  #search:focus { border-color: var(--accent); }
+  #search::placeholder { color: var(--text-dim); }
+  .stats {
+    color: var(--text-dim);
+    font-size: 12px;
+    min-width: 80px;
+    text-align: center;
+  }
+  .theme-toggle {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 16px;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 150ms, border-color 150ms;
+    flex-shrink: 0;
+  }
+  .theme-toggle:hover { color: var(--text); border-color: var(--text-dim); }
+
+  /* ---- Table header ---- */
+  .thead {
+    display: flex;
+    font-size: 12px;
+    color: var(--text-dim);
+    padding: 4px 10px;
+    border-bottom: 1px solid var(--border);
+    user-select: none;
+  }
+  .thead span { cursor: pointer; white-space: nowrap; }
+  .thead span:hover { color: var(--text); }
+  .sort-indicator { font-size: 10px; margin-left: 2px; pointer-events: none; }
+  .sort-indicator.secondary { opacity: 0.4; }
+  .col-name { flex: 1; }
+  .col-size { width: 110px; text-align: right; }
+  .col-date { width: 180px; text-align: right; }
+
+  /* ---- Virtual scroll ---- */
+  .scroll-wrap {
+    flex: 1;
+    overflow-y: auto;
+    position: relative;
+    min-height: 0;
+  }
+  .scroll-spacer { width: 100%; }
+  .scroll-viewport {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+  }
+
+  /* ---- Rows ---- */
+  .row {
+    display: flex;
+    align-items: center;
+    height: calc(var(--row-h) * 1px);
+    padding: 0 10px;
+    border-bottom: 1px solid var(--border);
+    transition: background 150ms ease;
+  }
+  .row:hover { background: var(--bg-raised); }
+  .row a {
+    color: var(--text);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+  .row a:hover { text-decoration: underline; }
+  .row .icon { flex-shrink: 0; font-size: 15px; width: 20px; text-align: center; }
+  .row .fname {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .row .col-name { flex: 1; min-width: 0; }
+  .row .col-size { width: 110px; text-align: right; color: var(--text-dim); font-size: 13px; flex-shrink: 0; }
+  .row .col-date { width: 180px; text-align: right; color: var(--text-dim); font-size: 13px; flex-shrink: 0; }
+
+  /* ---- Copy button ---- */
+  .copy-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 13px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 150ms;
+    min-width: 28px;
+    min-height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .row:hover .copy-btn { opacity: 1; }
+  .copy-btn:focus-visible { opacity: 1; outline: 1px solid var(--accent); }
+  .copy-btn:hover { color: var(--accent); background: var(--btn-hover-bg); }
+  .copy-btn.copied { color: #4ade80; }
+
+  /* ---- Status ---- */
+  .status {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-dim);
+  }
+  .status.error { color: #f87171; }
+
+  /* ---- Mobile: touch devices ---- */
+  @media (hover: none) {
+    .copy-btn { opacity: 0.6; }
+  }
+
+  /* ---- Mobile: narrow screens ---- */
+  @media (max-width: 700px) {
+    body { padding: 12px 3% 0; }
+    .col-date { display: none; }
+    .col-size { width: 70px; font-size: 12px; }
+    .row .col-size { font-size: 11px; }
+    #search { width: 100%; max-width: none; }
+    .toolbar { gap: 6px; }
+    .breadcrumbs { font-size: 0.95em; word-break: break-all; }
+  }
+
+  @media (max-width: 400px) {
+    .col-size { width: 55px; }
+    .stats { min-width: auto; font-size: 11px; }
+  }
+  [hidden] { display: none !important; }
+  button, select, dialog input { font: inherit; }
+  .action, dialog button, dialog select, dialog input {
+    color: var(--text); background: var(--bg-input); border: 1px solid var(--text-dim);
+    border-radius: 4px; padding: 6px 10px; min-height: 36px;
+  }
+  button { cursor: pointer; }
+  button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  dialog { margin: auto; width: min(620px, 94vw); max-height: 85vh; overflow: auto; padding: 24px; background: var(--bg); color: var(--text); border: 1px solid var(--text-dim); border-radius: 8px; }
+  dialog::backdrop { background: rgba(0,0,0,0.65); }
+  dialog h2 { margin-bottom: 16px; }
+  dialog label { display: block; margin: 12px 0; }
+  dialog input { max-width: 100%; }
+  .dialog-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+  .message { overflow-wrap: anywhere; margin: 12px 0; }
+  .share-item { border-bottom: 1px solid var(--text-dim); padding: 12px 0; overflow-wrap: anywhere; }
+  .share-item button { margin: 8px 8px 0 0; }
+</style>
+</head>
+<body>
+
+<div class="breadcrumbs" id="breadcrumbs"></div>
+<div class="toolbar">
+  <input type="text" id="search" placeholder="Filter files... ( /regex/ )" autofocus>
+  <div class="stats" id="stats"></div>
+  <button class="action" id="shareCurrent" hidden>Share folder</button>
+  <button class="action" id="manageShares" hidden>Shares</button>
+  <button class="action" id="logout" hidden>Log out</button>
+  <button class="theme-toggle" id="themeToggle" title="Toggle light/dark" aria-label="Toggle light/dark mode"></button>
+</div>
+<div class="thead" id="thead">
+  <span class="col-name" data-sort="name">Name</span>
+  <span class="col-size" data-sort="size">Size</span>
+  <span class="col-date" data-sort="date">Modified</span> <!-- sort key "date" maps to mtime -->
+</div>
+<div class="scroll-wrap" id="scrollWrap">
+  <div class="scroll-spacer" id="spacer"></div>
+  <div class="scroll-viewport" id="viewport"></div>
+</div>
+
+<dialog id="loginDialog" aria-labelledby="loginTitle">
+  <form id="loginForm">
+    <h2 id="loginTitle">Owner login</h2>
+    <label>Username <input id="username" autocomplete="username" required></label>
+    <label>Password <input id="password" type="password" autocomplete="current-password" required></label>
+    <p id="loginMessage" class="message" role="status"></p>
+    <button type="submit">Log in</button>
+  </form>
+</dialog>
+<dialog id="shareDialog" aria-labelledby="shareTitle">
+  <form id="shareForm">
+    <h2 id="shareTitle">Create share link</h2>
+    <p id="shareTarget" class="message"></p>
+    <label>Expires after <select id="lifetime">
+      <option value="3600">1 hour</option><option value="86400">1 day</option>
+      <option value="604800" selected>7 days</option><option value="2592000">30 days</option>
+      <option value="custom">Custom duration</option><option value="0">Never</option>
+    </select></label>
+    <label id="customLabel" hidden>Hours <input id="customHours" type="number" min="0.016667" max="87600" step="any" value="24"></label>
+    <p>Anyone with this link can access this item. Folder shares include future files.</p>
+    <p id="shareMessage" class="message" role="status"></p>
+    <label id="linkLabel" hidden>Share link <input id="shareLink" readonly style="width:100%"></label>
+    <div class="dialog-actions"><button id="createShare" type="submit">Create link</button><button id="copyShare" type="button" hidden>Copy link</button><button type="button" data-close="shareDialog">Close</button></div>
+  </form>
+</dialog>
+<dialog id="sharesDialog" aria-labelledby="sharesTitle">
+  <h2 id="sharesTitle">Shared links</h2>
+  <p id="sharesMessage" class="message" role="status"></p><div id="sharesList"></div>
+  <div class="dialog-actions"><button type="button" data-close="sharesDialog">Close</button></div>
+</dialog>
+<script>
+(function() {
+  'use strict';
+
+  var shareMatch = window.location.pathname.match(/^\/s\/([A-Za-z0-9_-]+)\/$/);
+  var shareToken = shareMatch ? shareMatch[1] : '';
+  var isOwner = false;
+  var selectedPath = '.';
+  var loginDialog = document.getElementById('loginDialog');
+  var shareDialog = document.getElementById('shareDialog');
+  var sharesDialog = document.getElementById('sharesDialog');
+
+  async function api(url, method, body) {
+    var options = { method: method || 'GET', headers: {} };
+    if (method && method !== 'GET') {
+      options.headers['X-Requested-With'] = 'file-share';
+      if (body !== undefined) { options.headers['Content-Type'] = 'application/json'; options.body = JSON.stringify(body); }
+    }
+    var response = await fetch(url, options);
+    if (!response.ok) {
+      if (response.status === 401 && !shareToken && !loginDialog.open) loginDialog.showModal();
+      throw new Error(response.status === 404 ? 'Link unavailable, expired, or revoked.' : response.status === 429 ? 'Too many attempts. Try again in a minute.' : 'Request failed (' + response.status + ').');
+    }
+    return response.status === 204 ? null : response.json();
+  }
+  function decodedDir() { return decodeURIComponent(getDirFromHash()).replace(/\/$/, ''); }
+  function shareURL(s) {
+    var url = window.location.origin + '/s/' + s.token + '/';
+    return s.directory ? url : url + encodeURIComponent(s.path.split('/').pop());
+  }
+  function showShare(target) {
+    selectedPath = target || '.';
+    document.getElementById('shareTarget').textContent = selectedPath;
+    document.getElementById('shareMessage').textContent = '';
+    document.getElementById('linkLabel').hidden = true;
+    document.getElementById('copyShare').hidden = true;
+    document.getElementById('createShare').disabled = false;
+    shareDialog.showModal();
+  }
+  document.querySelectorAll('[data-close]').forEach(function(button) {
+    button.addEventListener('click', function() { document.getElementById(button.dataset.close).close(); });
+  });
+  loginDialog.addEventListener('cancel', function(event) { event.preventDefault(); });
+  document.getElementById('loginForm').addEventListener('submit', async function(event) {
+    event.preventDefault(); var button = event.submitter; button.disabled = true;
+    try {
+      await api('/api/login', 'POST', {username: document.getElementById('username').value, password: document.getElementById('password').value});
+      document.getElementById('password').value = '';
+      loginDialog.close(); await initialize();
+    } catch (error) { document.getElementById('loginMessage').textContent = error.message; }
+    finally { button.disabled = false; }
+  });
+  document.getElementById('logout').addEventListener('click', async function() {
+    try { await api('/api/logout', 'POST'); window.location.reload(); }
+    catch (error) { window.alert(error.message); }
+  });
+  document.getElementById('shareCurrent').addEventListener('click', function() { showShare(decodedDir()); });
+  document.getElementById('lifetime').addEventListener('change', function() {
+    document.getElementById('customLabel').hidden = this.value !== 'custom';
+    document.getElementById('customHours').required = this.value === 'custom';
+  });
+  document.getElementById('shareForm').addEventListener('submit', async function(event) {
+    event.preventDefault();
+    var button = document.getElementById('createShare'); button.disabled = true;
+    var value = document.getElementById('lifetime').value;
+    var seconds = value === 'custom' ? Math.round(Number(document.getElementById('customHours').value) * 3600) : Number(value);
+    try {
+      if (!Number.isSafeInteger(seconds) || seconds < 0 || seconds > 315360000 || (value === 'custom' && seconds < 1)) throw new Error('Choose a duration between 1 second and 10 years.');
+      var s = await api('/api/shares', 'POST', {path: selectedPath, seconds: seconds});
+      document.getElementById('shareLink').value = shareURL(s);
+      document.getElementById('linkLabel').hidden = false;
+      document.getElementById('copyShare').hidden = false;
+      document.getElementById('shareMessage').textContent = s.expires ? 'Expires ' + new Date(s.expires * 1000).toLocaleString() : 'Does not expire. Revoke when no longer needed.';
+    } catch (error) { document.getElementById('shareMessage').textContent = error.message; button.disabled = false; }
+  });
+  document.getElementById('copyShare').addEventListener('click', function() {
+    copyToClipboard(document.getElementById('shareLink').value).then(function() { document.getElementById('copyShare').textContent = 'Copied'; }).catch(function() { document.getElementById('shareMessage').textContent = 'Copy failed. Select and copy the link above.'; });
+  });
+  async function refreshShares() {
+    var list = document.getElementById('sharesList');
+    var message = document.getElementById('sharesMessage');
+    try {
+      var shares = await api('/api/shares'); list.replaceChildren();
+      message.textContent = shares.length ? '' : 'No shared links.';
+      shares.forEach(function(s) {
+        var row = document.createElement('div'); row.className = 'share-item';
+        var label = document.createElement('div');
+        label.textContent = s.path + ' — ' + (s.expires ? (s.expires * 1000 <= Date.now() ? 'Expired ' : 'Expires ') + new Date(s.expires * 1000).toLocaleString() : 'Never expires');
+        var copy = document.createElement('button'); copy.textContent = 'Copy link';
+        copy.addEventListener('click', function() { copyToClipboard(shareURL(s)).then(function() { copy.textContent = 'Copied'; }).catch(function() { message.textContent = 'Copy failed.'; }); });
+        var revoke = document.createElement('button'); revoke.textContent = 'Revoke';
+        revoke.addEventListener('click', async function() {
+          if (!window.confirm('Revoke access to ' + s.path + '? New downloads and seeks will stop working.')) return;
+          revoke.disabled = true;
+          try { await api('/api/shares?token=' + encodeURIComponent(s.token), 'DELETE'); await refreshShares(); }
+          catch (error) { message.textContent = error.message; revoke.disabled = false; }
+        });
+        row.append(label, copy, revoke); list.appendChild(row);
+      });
+    } catch (error) { message.textContent = error.message; }
+  }
+  document.getElementById('manageShares').addEventListener('click', function() { sharesDialog.showModal(); refreshShares(); });
+
+  var ROW_H = 36; // must match --row-h in CSS above
+  var BUFFER = 10;
+  var STORAGE_PREFIX = window.location.pathname.replace(/\/$/, '');
+  var STORAGE_SORT_KEY = STORAGE_PREFIX + ':sort';
+  var STORAGE_THEME_KEY = STORAGE_PREFIX + ':theme';
+
+  // ---- Persistence helpers ----
+  function store(key, val) {
+    try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) {}
+  }
+  function retrieve(key) {
+    try { var v = localStorage.getItem(key); return v ? JSON.parse(v) : null; } catch(e) { return null; }
+  }
+
+  // ---- Theme ----
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    var btn = document.getElementById('themeToggle');
+    btn.textContent = theme === 'dark' ? '\u2600' : '\u263E';
+    var label = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+    btn.title = label;
+    btn.setAttribute('aria-label', label);
+  }
+
+  document.getElementById('themeToggle').addEventListener('click', function() {
+    var current = document.documentElement.getAttribute('data-theme');
+    var next = current === 'dark' ? 'light' : 'dark';
+    applyTheme(next);
+    store(STORAGE_THEME_KEY, next);
+  });
+
+  // ---- URL helpers ----
+  var baseUrl = window.location.origin + (shareToken ? '/s/' + shareToken + '/' : '/files/');
+
+  function getDirFromHash() {
+    var h = window.location.hash.replace(/^#\/?/, '');
+    if (h && !h.match(/\/$/)) h += '/';
+    return h;
+  }
+
+  // ---- Elements (cached early — sort stack init needs theadEl) ----
+  var scrollWrap = document.getElementById('scrollWrap');
+  var viewport = document.getElementById('viewport');
+  var spacer = document.getElementById('spacer');
+  var searchInput = document.getElementById('search');
+  var statsEl = document.getElementById('stats');
+  var theadEl = document.getElementById('thead');
+  var breadcrumbsEl = document.getElementById('breadcrumbs');
+
+  // ---- Sort stack ----
+  // Array of {key, asc}. First = primary, second = tiebreaker, etc.
+  // Max 3 entries (one per column).
+  var sortStack = [{ key: 'name', asc: true }];
+
+  function initSortStack() {
+    var saved = retrieve(STORAGE_SORT_KEY);
+    if (Array.isArray(saved) && saved.length > 0) {
+      // Validate entries
+      var valid = saved.filter(function(s) {
+        return s && typeof s.key === 'string' && typeof s.asc === 'boolean'
+          && ['name','size','date'].indexOf(s.key) !== -1;
+      });
+      if (valid.length > 0) sortStack = valid.slice(0, 3);
+    }
+    renderSortIndicators();
+  }
+
+  function pushSort(key) {
+    // Check if this key was already the primary sort
+    var wasPrimary = sortStack.length > 0 && sortStack[0].key === key;
+    var prevAsc = wasPrimary ? sortStack[0].asc : undefined;
+    // Remove existing entry for this key
+    sortStack = sortStack.filter(function(s) { return s.key !== key; });
+    // If clicking same primary key, toggle direction; otherwise ascending
+    sortStack.unshift({ key: key, asc: wasPrimary ? !prevAsc : true });
+    sortStack = sortStack.slice(0, 3);
+    store(STORAGE_SORT_KEY, sortStack);
+    renderSortIndicators();
+  }
+
+  function renderSortIndicators() {
+    // Clear all indicators
+    theadEl.querySelectorAll('.sort-indicator').forEach(function(el) { el.remove(); });
+    // Add indicators per stack position
+    for (var i = 0; i < sortStack.length; i++) {
+      var col = theadEl.querySelector('[data-sort="' + sortStack[i].key + '"]');
+      if (!col) continue;
+      var span = document.createElement('span');
+      span.className = 'sort-indicator' + (i > 0 ? ' secondary' : '');
+      span.textContent = sortStack[i].asc ? ' \u25B4' : ' \u25BE';
+      col.appendChild(span);
+    }
+  }
+
+  function compareItems(a, b) {
+    if (sortStack.length === 0) return 0;
+    // Pin dirs to top only when primary sort is name
+    if (sortStack[0].key === 'name' && a.isDir !== b.isDir) {
+      return a.isDir ? -1 : 1;
+    }
+    // Walk the sort stack
+    for (var i = 0; i < sortStack.length; i++) {
+      var s = sortStack[i];
+      var cmp = 0;
+      if (s.key === 'name') {
+        cmp = a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+      } else if (s.key === 'size') {
+        cmp = a.size - b.size;
+      } else if (s.key === 'date') {
+        cmp = a.mtime - b.mtime;
+      }
+      if (cmp !== 0) return s.asc ? cmp : -cmp;
+    }
+    return 0;
+  }
+
+  // ---- State ----
+  var allItems = [];
+  var filtered = [];
+  var lastStart = -1, lastEnd = -1;
+
+  // ---- Breadcrumbs ----
+  function renderBreadcrumbs() {
+    var dir = getDirFromHash();
+    var parts = dir.split('/').filter(Boolean);
+
+    var html = '<a href="#/">/</a>';
+    var hashPath = '';
+    for (var i = 0; i < parts.length; i++) {
+      hashPath += parts[i] + '/';
+      html += ' <span class="sep">/</span> <a href="#/' + escAttr(hashPath) + '">' + escHtml(safeDecode(parts[i])) + '</a>';
+    }
+    breadcrumbsEl.innerHTML = html;
+    document.title = 'Index of /' + dir;
+  }
+
+  // ---- Load ----
+  var loadSequence = 0;
+  async function load() {
+    var sequence = ++loadSequence;
+    scrollWrap.querySelectorAll('.status').forEach(function(el) { el.remove(); });
+    var dir = getDirFromHash();
+
+    spacer.style.display = 'none';
+    viewport.style.display = 'none';
+    var loadingEl = document.createElement('div');
+    loadingEl.className = 'status';
+    loadingEl.textContent = 'Loading\u2026';
+    scrollWrap.insertBefore(loadingEl, scrollWrap.firstChild);
+    searchInput.value = '';
+    scrollWrap.scrollTop = 0;
+
+    try {
+      var data = await api('/api/list?path=' + encodeURIComponent(decodeURIComponent(dir)) + (shareToken ? '&token=' + encodeURIComponent(shareToken) : ''));
+      if (sequence !== loadSequence) return;
+
+      allItems = data.map(function(item) {
+        return {
+          name: item.name,
+          isDir: item.type === 'directory',
+          size: item.size || 0,
+          mtime: item.mtime ? new Date(item.mtime) : new Date(0)
+        };
+      });
+
+      loadingEl.remove();
+      spacer.style.display = '';
+      viewport.style.display = '';
+
+      applyFilterAndSort();
+    } catch (err) {
+      if (sequence !== loadSequence) return;
+      loadingEl.className = 'status error';
+      loadingEl.innerHTML = 'Failed to load directory listing.<br>' + escHtml(err.message);
+    }
+  }
+
+  // ---- Filter + sort ----
+  function applyFilterAndSort() {
+    var q = searchInput.value.trim();
+
+    var regexMatch = q.match(/^\/(.+)\/([gimsuy]*)$/);
+    var regex = null;
+    var terms = [];
+
+    if (regexMatch) {
+      try {
+        var flags = regexMatch[2] || '';
+        flags = flags.replace(/[gy]/g, '');
+        if (flags.indexOf('i') === -1) flags += 'i';
+        regex = new RegExp(regexMatch[1], flags);
+      } catch (e) {
+        regex = null;
+      }
+    } else {
+      q = q.toLowerCase();
+      terms = q ? q.split(/\s+/) : [];
+    }
+
+    filtered = allItems.filter(function(item) {
+      if (!regex && terms.length === 0) return true;
+      if (regex) return regex.test(item.name);
+      var name = item.name.toLowerCase();
+      return terms.every(function(t) { return name.indexOf(t) !== -1; });
+    });
+
+    filtered.sort(compareItems);
+
+    statsEl.textContent = filtered.length === allItems.length
+      ? filtered.length + ' items'
+      : filtered.length + ' / ' + allItems.length + ' items';
+
+    spacer.style.height = (filtered.length * ROW_H) + 'px';
+    lastStart = -1; lastEnd = -1;
+    renderVisible();
+  }
+
+  // ---- Virtual scroll ----
+  function renderVisible() {
+    var scrollTop = scrollWrap.scrollTop;
+    var viewH = scrollWrap.clientHeight;
+
+    var start = Math.floor(scrollTop / ROW_H) - BUFFER;
+    var end = Math.ceil((scrollTop + viewH) / ROW_H) + BUFFER;
+    start = Math.max(0, start);
+    end = Math.min(filtered.length, end);
+
+    if (start === lastStart && end === lastEnd) return;
+    lastStart = start;
+    lastEnd = end;
+
+    var frag = document.createDocumentFragment();
+    var dir = getDirFromHash();
+    for (var i = start; i < end; i++) {
+      frag.appendChild(makeRow(filtered[i], dir));
+    }
+
+    viewport.style.transform = 'translateY(' + (start * ROW_H) + 'px)';
+    viewport.innerHTML = '';
+    viewport.appendChild(frag);
+  }
+
+  function makeRow(item, dir) {
+    var div = document.createElement('div');
+    div.className = 'row';
+
+    var encodedName = encodeURIComponent(item.name);
+
+    if (item.isDir) {
+      var href = '#/' + dir + encodedName + '/';
+      div.innerHTML =
+        '<div class="col-name"><a href="' + escAttr(href) + '">' +
+          '<span class="icon">\uD83D\uDCC1</span>' +
+          '<span class="fname">' + escHtml(item.name) + '</span>' +
+        '</a></div>' +
+        '<div class="col-size">\u2014</div>' +
+        '<div class="col-date">' + fmtDate(item.mtime) + '</div>';
+    } else {
+      var fileHref = baseUrl + dir + encodedName;
+      div.innerHTML =
+        '<div class="col-name"><a href="' + escAttr(fileHref) + '">' +
+          '<span class="icon">' + fileIcon(item.name) + '</span>' +
+          '<span class="fname">' + escHtml(item.name) + '</span>' +
+        '</a></div>' +
+        '<button class="copy-btn" data-href="' + escAttr(fileHref) + '" title="Copy link">\u2398</button>' +
+        '<div class="col-size">' + fmtSize(item.size) + '</div>' +
+        '<div class="col-date">' + fmtDate(item.mtime) + '</div>';
+    }
+
+    if (item.isDir) {
+      var copy = document.createElement('button'); copy.className = 'copy-btn'; copy.textContent = '\u2398';
+      copy.title = 'Copy folder link'; copy.setAttribute('aria-label', 'Copy folder link for ' + item.name);
+      copy.dataset.href = shareToken ? baseUrl + dir + encodedName + '/' : window.location.origin + '/#/' + dir + encodedName + '/';
+      div.insertBefore(copy, div.querySelector('.col-size'));
+    }
+    if (isOwner) {
+      var shareButton = document.createElement('button'); shareButton.className = 'copy-btn file-link-action'; shareButton.textContent = 'Share';
+      shareButton.setAttribute('aria-label', 'Share ' + item.name);
+      shareButton.addEventListener('click', function() { showShare((decodedDir() ? decodedDir() + '/' : '') + item.name); });
+      div.insertBefore(shareButton, div.querySelector('.col-size'));
+    }
+    return div;
+  }
+
+  // ---- Clipboard ----
+  function copyToClipboard(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(text);
+    }
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    var copied = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return copied ? Promise.resolve() : Promise.reject(new Error('Copy failed'));
+  }
+
+  viewport.addEventListener('click', function(e) {
+    var btn = e.target.closest('.copy-btn[data-href]');
+    if (!btn) return;
+    e.preventDefault();
+    var url = new URL(btn.dataset.href, baseUrl).href;
+    copyToClipboard(url).then(function() {
+      btn.textContent = '\u2713';
+      btn.classList.add('copied');
+      setTimeout(function() { btn.textContent = '\u2398'; btn.classList.remove('copied'); }, 1200);
+    }).catch(function() {
+      btn.textContent = '\u2717';
+      setTimeout(function() { btn.textContent = '\u2398'; }, 1200);
+    });
+  });
+
+  // ---- Sort click handler ----
+  theadEl.addEventListener('click', function(e) {
+    var col = e.target.closest('[data-sort]');
+    if (!col) return;
+    pushSort(col.dataset.sort);
+    applyFilterAndSort();
+  });
+
+  // ---- Search ----
+  var debounceTimer;
+  searchInput.addEventListener('input', function() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(applyFilterAndSort, 80);
+  });
+
+  // ---- Scroll + resize ----
+  scrollWrap.addEventListener('scroll', renderVisible, { passive: true });
+  window.addEventListener('resize', function() { lastStart = -1; renderVisible(); });
+
+  // ---- Hash navigation ----
+  window.addEventListener('hashchange', function() {
+    renderBreadcrumbs();
+    load();
+  });
+
+  // ---- Helpers ----
+  function fmtSize(bytes) {
+    if (!bytes || bytes <= 0) return '0 B';
+    var units = ['B','KB','MB','GB','TB'];
+    var i = Math.floor(Math.log(bytes) / Math.log(1024));
+    if (i >= units.length) i = units.length - 1;
+    return (bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0) + ' ' + units[i];
+  }
+
+  function fmtDate(d) {
+    if (!d || d.getTime() === 0) return '';
+    var y = d.getFullYear();
+    var m = String(d.getMonth() + 1).padStart(2, '0');
+    var day = String(d.getDate()).padStart(2, '0');
+    var h = String(d.getHours()).padStart(2, '0');
+    var min = String(d.getMinutes()).padStart(2, '0');
+    return y + '-' + m + '-' + day + ' ' + h + ':' + min;
+  }
+
+  var ICON_MAP = {
+    'mp4':'\uD83C\uDFA5','mkv':'\uD83C\uDFA5','avi':'\uD83C\uDFA5','mov':'\uD83C\uDFA5','webm':'\uD83C\uDFA5',
+    'mp3':'\uD83C\uDFB5','flac':'\uD83C\uDFB5','ogg':'\uD83C\uDFB5','wav':'\uD83C\uDFB5','aac':'\uD83C\uDFB5',
+    'jpg':'\uD83D\uDDBC','jpeg':'\uD83D\uDDBC','png':'\uD83D\uDDBC','gif':'\uD83D\uDDBC','webp':'\uD83D\uDDBC','svg':'\uD83D\uDDBC',
+    'zip':'\uD83D\uDCE6','tar':'\uD83D\uDCE6','gz':'\uD83D\uDCE6','7z':'\uD83D\uDCE6','rar':'\uD83D\uDCE6','xz':'\uD83D\uDCE6',
+    'pdf':'\uD83D\uDCC4','doc':'\uD83D\uDCC4','docx':'\uD83D\uDCC4','txt':'\uD83D\uDCC4',
+    'iso':'\uD83D\uDCBF','img':'\uD83D\uDCBF',
+    'torrent':'\uD83E\uDDF2','nfo':'\u2139\uFE0F','srt':'\uD83D\uDCDD','sub':'\uD83D\uDCDD'
+  };
+
+  function fileIcon(name) {
+    var dot = name.lastIndexOf('.');
+    if (dot <= 0) return '\uD83D\uDCC4';
+    var ext = name.substring(dot + 1).toLowerCase();
+    return ICON_MAP[ext] || '\uD83D\uDCC4';
+  }
+
+  var _escDiv = document.createElement('div');
+  function escHtml(s) { _escDiv.textContent = s; return _escDiv.innerHTML; }
+  function escAttr(s) { return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function safeDecode(s) { try { return decodeURIComponent(s); } catch(e) { return s; } }
+
+  // ---- Init ----
+  applyTheme(document.documentElement.getAttribute('data-theme') || 'dark');
+  initSortStack();
+  async function initialize() {
+    try {
+      isOwner = !shareToken && (await api('/api/session')).owner;
+      ['shareCurrent', 'manageShares', 'logout'].forEach(function(id) { document.getElementById(id).hidden = !isOwner; });
+      if (!shareToken && !isOwner) { if (!loginDialog.open) loginDialog.showModal(); return; }
+      renderBreadcrumbs(); await load();
+    } catch (error) { statsEl.textContent = error.message; }
+  }
+  initialize();
+})();
+</script>
+</body>
+</html>

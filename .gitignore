@@ -1,0 +1,18 @@
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
+.beads/proxieddb/
+
+# Local credentials, state and build output
+/config/
+/data/
+/state/
+/auth.json
+/file-share
+/result
+/result-*
+.direnv/
+.envrc.local.d/
+.worktrees/

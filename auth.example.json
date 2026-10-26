@@ -1,0 +1,4 @@
+{
+  "username": "owner",
+  "password_hash": "REPLACE_WITH_BCRYPT_HASH_FROM_STDIN_HASH_COMMAND"
+}
