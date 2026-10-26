@@ -83,4 +83,8 @@ For dependency updates, change `go.mod`/`go.sum`, recompute `vendorHash` using N
 
 Source snapshot: `/srv/docker/networks/torrent/file-share` at parent commit `0baa81a3718cde53484add65906bee889efc6f75`. This repository is independent: no runtime path or symlink points back to that installation. Source history was not imported. The installation's credentials, databases, networks, proxy configuration and `stack_test.py` deployment assertions are intentionally excluded. The previous default hostname was replaced by an explicit `-origin` requirement. Existing Go tests and embedded UI are retained.
 
-Creating or building this repository does not migrate, stop or update the existing service. No remote repository or license grant is implied; choose licensing before external distribution.
+Creating or building this repository does not migrate, stop or update the existing service. No remote repository or publication is implied.
+
+## License
+
+Project-owned code and UI: [MIT](LICENSE), copyright (c) 2026 xmoforf. See [source provenance and third-party notices](THIRD_PARTY_NOTICES.md) for the owner's imported-code attestation and dependency terms. Redistribute `LICENSE`, `THIRD_PARTY_NOTICES.md` and `licenses/` with source or binary releases. Nix and Docker packages include these notices; plain `go build` requires bundling them separately.

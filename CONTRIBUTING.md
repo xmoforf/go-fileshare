@@ -45,4 +45,4 @@ Network access is needed for the vulnerability database. Retain tool/compiler ve
 
 Go dependencies live in `go.mod`/`go.sum`; update the Nix `vendorHash` when those change. Toolchain updates belong in `flake.nix`/`flake.lock`. No global Go install is required.
 
-Only task-owned changes belong in commits. Publication, deployment and Git remote operations require separate approval. Do not assign a license without the owner's decision.
+Only task-owned changes belong in commits. Publication, deployment and Git remote operations require separate approval. The owner approved MIT for project-owned code; third-party terms remain separate. When upgrading Go or modules, refresh the exact upstream notices and inventory in `THIRD_PARTY_NOTICES.md` and `licenses/`, run `go mod verify`, and check notices are included in package/release outputs. New imported code/assets need explicit provenance and compatible terms; do not infer rights from availability.

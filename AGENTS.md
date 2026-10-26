@@ -10,7 +10,7 @@ No hooks or remotes are installed. Initialized with bd 1.2.2 (host Pi checklist 
 
 ## Environment
 
-`nix develop` supplies Go 1.27.3, GCC and Git. Linux `openat2` is mandatory. Keep `.envrc`, `flake.nix` and `flake.lock` tracked; local env, credentials and state stay ignored. Nix source selection includes only Go source/tests, module files and embedded HTML.
+`nix develop` supplies Go 1.27.3, GCC and Git. Linux `openat2` is mandatory. Keep `.envrc`, `flake.nix` and `flake.lock` tracked; local env, credentials and state stay ignored. Nix source selection includes only Go source/tests, module files, embedded HTML and distribution license/notices.
 
 ## Verification
 

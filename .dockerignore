@@ -4,3 +4,7 @@
 !go.sum
 !*.go
 !index.html
+!LICENSE
+!THIRD_PARTY_NOTICES.md
+!licenses/
+!licenses/**
