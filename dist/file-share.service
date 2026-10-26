@@ -1,0 +1,28 @@
+[Unit]
+Description=Read-only file sharing
+After=network.target
+
+[Service]
+Type=simple
+User=file-share
+Group=file-share
+ExecStart=/usr/local/bin/file-share -listen 127.0.0.1:8080 -root /srv/file-share -database /var/lib/file-share/shares.db -auth /etc/file-share/auth.json -origin https://files.example.com
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=45
+UMask=0077
+StateDirectory=file-share
+StateDirectoryMode=0700
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/srv/file-share /etc/file-share
+PrivateTmp=true
+PrivateDevices=true
+NoNewPrivileges=true
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+# RestrictSUIDSGID blocks mandatory openat2 on systemd 257; keep NoNewPrivileges instead.
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

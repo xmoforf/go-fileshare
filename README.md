@@ -15,6 +15,8 @@ nix flake check
 
 `flake.lock` pins nixpkgs/toolchain. `go.mod` and `go.sum` pin Go dependencies; the flake's `vendorHash` fixes their vendored contents for sandboxed builds. The dev shell sets `GOTOOLCHAIN=local` so Go cannot silently download a different compiler. Optional direnv: inspect `.envrc`, then `direnv allow`.
 
+For installation without Nix, see [Linux binary, Go-source build and systemd](docs/systemd.md). It includes a dedicated service identity, private state, read-only content/config, and manual update/recovery steps; the reference unit is `dist/file-share.service`.
+
 ## Configure and run
 
 Keep served files, credentials and writable SQLite state separate. Never put credentials, the database or backups beneath the served root.
