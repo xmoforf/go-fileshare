@@ -41,8 +41,14 @@
           };
         });
 
+      nixosModules.default = import ./nix/module.nix { inherit self; };
+
       checks = forAllSystems (system: {
         build = self.packages.${system}.default;
+        service = import ./nix/tests/service.nix {
+          inherit self;
+          pkgs = nixpkgs.legacyPackages.${system};
+        };
       });
     };
 }

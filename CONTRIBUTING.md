@@ -15,6 +15,8 @@ Container/reference changes also require `PYTHONDONTWRITEBYTECODE=1 python3 -m u
 
 Binary/systemd reference changes also require `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_systemd.py'` and a disposable real-systemd install/start/restart/update/permissions rehearsal; see [systemd installation](docs/systemd.md). Static checks alone are not runtime acceptance. Direct source builds need Go compatible with `go.mod`, not Nix.
 
+NixOS module changes require `nix build .#checks.x86_64-linux.service --print-build-logs` (also included in host `nix flake check`) on a VM-capable Linux builder (KVM recommended; QEMU TCG fallback is slower). The disposable VM uses only synthetic data and checks actual service permissions and persistence; see [NixOS installation and verification](docs/nixos.md). Evaluate ARM with `nix eval --raw .#checks.aarch64-linux.service.drvPath`; claim ARM build/runtime only after executing on a suitable builder. Do not apply a host configuration as a test.
+
 Format Go changes with `gofmt`. Do not weaken Linux confinement or HTTPS origin checks to simplify tests. Tests use temporary synthetic data, never live credentials or shares.
 
 For UI regressions, start the opt-in HTTPS fixture described in README, log in with its test-only owner account, then open `/#/folder/`. It contains 208 synthetic entries. `ui_browser_test.js` defines `checkUI(page)` for a Playwright-compatible browser session; no package install is needed. In Pi's browser tool, submit the function from this file followed by `return await checkUI(page);`. Do not evaluate fetched code; the browser sandbox disables string-based code generation.

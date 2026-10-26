@@ -4,7 +4,7 @@ Single-owner file browser and expiring file/folder links. Embedded browser UI, b
 
 ## Requirements and build
 
-Linux 5.6+ with `openat2` support is required; symlinks and special files are excluded. Nix with flakes enabled provides Go 1.27.3 and development tools. Supported flake targets: x86_64-linux and aarch64-linux.
+Linux 5.6+ with `openat2` support is required; symlinks and special files are excluded. Nix with flakes enabled provides Go 1.27.3 and development tools. Flake targets: x86_64-linux and aarch64-linux; ARM build/runtime requires separate verification, not just evaluation.
 
 ```sh
 nix develop                 # pinned Go + C compiler (race tests) + Git
@@ -14,6 +14,8 @@ nix flake check
 ```
 
 `flake.lock` pins nixpkgs/toolchain. `go.mod` and `go.sum` pin Go dependencies; the flake's `vendorHash` fixes their vendored contents for sandboxed builds. The dev shell sets `GOTOOLCHAIN=local` so Go cannot silently download a different compiler. Optional direnv: inspect `.envrc`, then `direnv allow`.
+
+For NixOS, see [NixOS service configuration and VM check](docs/nixos.md). The flake exports `nixosModules.default`; credentials stay in runtime files outside the Nix store, and the module does not configure public ingress.
 
 For installation without Nix, see [Linux binary, Go-source build and systemd](docs/systemd.md). It includes a dedicated service identity, private state, read-only content/config, and manual update/recovery steps; the reference unit is `dist/file-share.service`.
 
