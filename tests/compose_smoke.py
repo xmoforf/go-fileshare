@@ -25,6 +25,8 @@ def run(*args, **kwargs):
 
 
 def main():
+    if not __debug__:
+        raise SystemExit("assertions required; do not use python -O")
     assert (ROOT / "compose.yaml").is_file(), "missing supported compose.yaml"
     assert os.getuid() != 0, "run as non-root with local Docker access"
     assert not (os.environ.get("DOCKER_HOST") and os.environ.get("DOCKER_CONTEXT")), \

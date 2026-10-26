@@ -19,6 +19,8 @@ import time
 
 
 def main():
+    if not __debug__:
+        raise SystemExit("assertions required; do not use python -O")
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("binary", type=Path)
     parser.add_argument("--candidate", type=Path, help="defaults to the same binary; no cross-version claim")
