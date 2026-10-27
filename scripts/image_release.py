@@ -80,7 +80,11 @@ def registry_tags(actor, credential, registry="ghcr.io"):
             try:
                 with open_url(request, timeout=30) as response:
                     page = json.load(response)
-                    values = page.get("tags") or []
+                    if not isinstance(page, dict) or "tags" not in page:
+                        raise ValueError("invalid registry tag list")
+                    values = page["tags"]
+                    if values is None:
+                        values = []
                     if not isinstance(values, list) or not all(isinstance(t, str) for t in values):
                         raise ValueError("invalid registry tag list")
                     tags.extend(values)

@@ -94,6 +94,54 @@ class ImageReleaseTests(unittest.TestCase):
                 with self.assertRaises(RuntimeError):
                     module.registry_tags("owner", "synthetic")
 
+    def inventory_responses(self, page, later_page=False):
+        pages = [{"token": "synthetic"}]
+        if later_page:
+            pages.append({"tags": ["0.9.0"]})
+        pages.append(page)
+        responses = [io.BytesIO(json.dumps(data).encode()) for data in pages]
+        for response in responses:
+            response.headers = {}
+        if later_page:
+            responses[1].headers["Link"] = '</v2/xmoforf/go-fileshare/tags/list?last=0.9.0>; rel="next"'
+        return responses
+
+    def test_malformed_inventory_stops_publisher_before_writes(self):
+        module = self.module()
+        malformed = [{}, *({"tags": value} for value in
+                          (False, 0, "", {}, True, 1, "1.0.0", {"tag": "1.0.0"}, [None], ["1.0.0", 1])),
+                     None, [], "", 0, False]
+        env = {"GITHUB_SHA": "b" * 40, "GITHUB_REPOSITORY": "xmoforf/go-fileshare",
+               "GITHUB_REF": "refs/tags/v1.0.0", "REGISTRY_USERNAME": "xmoforf", "REGISTRY_TOKEN": "synthetic"}
+        for registry in module.REGISTRIES:
+            for page in malformed:
+                for later_page in (False, True):
+                    with self.subTest(registry=registry, page=page, later_page=later_page):
+                        with self.subTest(phase="parser"), \
+                                patch.object(module, "open_url", side_effect=self.inventory_responses(page, later_page)):
+                            with self.assertRaisesRegex(ValueError, "invalid registry tag list"):
+                                module.registry_tags("owner", "synthetic", registry=registry)
+                        with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, env), \
+                                patch.object(module, "open_url", side_effect=self.inventory_responses(page, later_page)), \
+                                patch.object(module.subprocess, "check_output", return_value="b" * 40) as output, \
+                                patch.object(module.subprocess, "run") as run, \
+                                patch.object(Path, "read_text", side_effect=AssertionError("inventory validation must precede artifact reads")):
+                            with self.assertRaisesRegex(ValueError, "invalid registry tag list"):
+                                module.publish("v1.0.0", Path(tmp), registry=registry)
+                            run.assert_not_called()
+                            output.assert_called_once_with(["git", "rev-parse", "HEAD"], text=True)
+                            self.assertEqual(list(Path(tmp).iterdir()), [])
+
+    def test_valid_empty_inventory_pages(self):
+        module = self.module()
+        for registry in module.REGISTRIES:
+            for value in (None, []):
+                for later_page in (False, True):
+                    with self.subTest(registry=registry, value=value, later_page=later_page), \
+                            patch.object(module, "open_url", side_effect=self.inventory_responses({"tags": value}, later_page)):
+                        self.assertEqual(module.registry_tags("owner", "synthetic", registry=registry),
+                                         ["0.9.0"] if later_page else [])
+
     def test_image_identity_must_match_release(self):
         module = self.module()
         self.assertTrue(hasattr(module, "verify_image"), "image identity verifier missing")
