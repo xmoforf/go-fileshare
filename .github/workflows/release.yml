@@ -22,68 +22,8 @@ jobs:
   checks:
     needs: validate
     uses: ./.github/workflows/checks.yml
-  images:
-    needs: validate
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runner: ubuntu-24.04
-            arch: amd64
-          - runner: ubuntu-24.04-arm
-            arch: arm64
-    runs-on: ${{ matrix.runner }}
-    env:
-      ARCH: ${{ matrix.arch }}
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          persist-credentials: false
-      - uses: cachix/install-nix-action@d9186cbdca7adedf113a159fa91f725a27866771 # v31
-      - name: Build native versioned image
-        run: |
-          set -euo pipefail
-          test "$(nix develop -c go env GOARCH)" = "$ARCH"
-          context="$RUNNER_TEMP/image-build"
-          mkdir "$context"
-          nix develop -c env CGO_ENABLED=0 go build -trimpath -buildvcs=false \
-            -ldflags "-X main.version=$GITHUB_REF_NAME -X main.revision=$GITHUB_SHA" \
-            -o "$context/file-share" .
-          cp LICENSE THIRD_PARTY_NOTICES.md "$context/"
-          cp -r licenses "$context/"
-          image="go-fileshare-ci:$GITHUB_SHA-$ARCH"
-          docker buildx build --builder default --load --provenance=false --platform "linux/$ARCH" \
-            -f dist/Dockerfile.release -t "$image" \
-            --label "org.opencontainers.image.title=go-fileshare" \
-            --label "org.opencontainers.image.description=Single-owner Linux file sharing with read-only links" \
-            --label "org.opencontainers.image.source=https://github.com/xmoforf/go-fileshare" \
-            --label "org.opencontainers.image.url=https://github.com/xmoforf/go-fileshare" \
-            --label "org.opencontainers.image.licenses=MIT" \
-            --label "org.opencontainers.image.version=$GITHUB_REF_NAME" \
-            --label "org.opencontainers.image.revision=$GITHUB_SHA" "$context"
-          mkdir "$RUNNER_TEMP/tested-image"
-          docker image inspect --format '{{.Id}}' "$image" > "$RUNNER_TEMP/tested-image/image-id.txt"
-          test "$(docker run --rm --network none "$image" -version)" = "file-share $GITHUB_REF_NAME ($GITHUB_SHA)"
-      - name: Native image HTTPS and persistence checks
-        run: python3 tests/compose_smoke.py --image "go-fileshare-ci:$GITHUB_SHA-$ARCH"
-      - name: Operator rehearsal and binary vulnerability scan
-        run: |
-          python3 tests/operations_smoke.py "$RUNNER_TEMP/image-build/file-share"
-          scanner=$(nix build --no-link --print-out-paths --impure --expr \
-            'let f = builtins.getFlake (toString ./.); in (builtins.getAttr builtins.currentSystem f.inputs.nixpkgs.legacyPackages).govulncheck')
-          "$scanner/bin/govulncheck" -mode=binary -show verbose "$RUNNER_TEMP/image-build/file-share"
-      - name: Export exact tested image
-        run: |
-          test "$(docker image inspect --format '{{.Id}}' "go-fileshare-ci:$GITHUB_SHA-$ARCH")" = "$(cat "$RUNNER_TEMP/tested-image/image-id.txt")"
-          docker save --output "$RUNNER_TEMP/tested-image/image.tar" "go-fileshare-ci:$GITHUB_SHA-$ARCH"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: image-${{ matrix.arch }}
-          path: ${{ runner.temp }}/tested-image/
-          if-no-files-found: error
-          retention-days: 7
   publish:
-    needs: [checks, images]
+    needs: checks
     strategy:
       fail-fast: false
       matrix:

@@ -1,6 +1,12 @@
 # Checks and releases
 
-Source lives at [GitHub `xmoforf/go-fileshare`](https://github.com/xmoforf/go-fileshare). Branch/PR checks use read-only repository permissions and never publish images. Version-tag pushes run the gated GHCR and Docker Hub release workflow below. No workflow creates Git tags, GitHub Releases or deployments. The existing Docker Hub candidate remains unchanged.
+Source lives at [GitHub `xmoforf/go-fileshare`](https://github.com/xmoforf/go-fileshare). Branch/PR/manual checks use read-only repository permissions and never publish images. Version-tag pushes run the gated GHCR and Docker Hub release workflow below. No workflow creates Git tags, GitHub Releases or deployments. The existing Docker Hub candidate remains unchanged.
+
+## Check-only image rehearsal
+
+`.github/workflows/checks.yml` runs the same native amd64/arm64 image build, Compose HTTPS/persistence/shutdown checks, operator rehearsal and binary vulnerability scan used for releases. Branch, PR and manual branch runs stamp binaries/images with version `ci` and the tested source SHA; release calls use the real version tag. No registry credential is passed to image jobs.
+
+Successful image jobs retain `image-amd64` and `image-arm64` for seven days, each containing `image.tar` and the tested config ID in `image-id.txt`. Record the run/source SHA, both native job results and archive identities before expiry. These are native runtime and Docker archive evidence, not proof of dual-registry publication or the separate local package checks below. Use an approved branch push or Checks dispatch for rehearsal, never a synthetic release tag or rerun of a publisher.
 
 ## GitHub container releases
 
@@ -36,7 +42,7 @@ docker pull docker.io/xmoforf/go-fileshare@sha256:588142370aba8fe929a5f1878ee7fb
 
 Push an approved `vMAJOR.MINOR.PATCH` Git tag (or `vMAJOR.MINOR.PATCH-prerelease`) whose commit is already on `main`. `.github/workflows/release.yml` rejects malformed tags, build metadata (`+...`), numeric prerelease identifiers with leading zeros, and tags too long for Docker. Treat the tag push as authorization for its downstream image publication; do not push a release tag merely to test CI.
 
-The workflow runs reusable Go race/vet/module/Python, Nix, vulnerability and six browser checks. Separate **native** `ubuntu-24.04` and `ubuntu-24.04-arm` jobs build versioned static binaries and scratch images, run the exact images through the existing Compose HTTPS/persistence/shutdown smoke test, rehearse binary operations, and scan each binary. Runtime checks exercise Linux openat2 and SQLite; cross-compilation alone is insufficient. The smoke fixture overrides UID/GID to the runner's non-root IDs; the delivered default remains `999:993` and is checked before promotion.
+The workflow runs reusable Go race/vet/module/Python, Nix, vulnerability and six browser checks. The same reusable checks workflow includes **native** `ubuntu-24.04` and `ubuntu-24.04-arm` jobs that build versioned static binaries and scratch images, run the exact images through the existing Compose HTTPS/persistence/shutdown smoke test, rehearse binary operations, and scan each binary. Runtime checks exercise Linux openat2 and SQLite; cross-compilation alone is insufficient. The smoke fixture overrides UID/GID to the runner's non-root IDs; the delivered default remains `999:993` and is checked before promotion.
 
 Only after all jobs pass do independent publication jobs load the same tested image archives, verify their platform/config/version/revision, and publish to **`ghcr.io/xmoforf/go-fileshare`** and **`docker.io/xmoforf/go-fileshare`**. GHCR uses the job's ephemeral `GITHUB_TOKEN`; Docker Hub uses username `xmoforf` and the repository Actions secret **`DOCKERHUB_TOKEN`**. Configure that secret with a token permitted to push this Docker Hub repository; restrict its privileges and trusted workflow editors. A missing/invalid secret fails the Docker Hub job, without cancelling GHCR or falling back to another registry's credential. Only publication jobs have `packages: write`; each receives only its selected registry token through `REGISTRY_USERNAME`/`REGISTRY_TOKEN`. The helper accepts only `--registry ghcr.io` (default) or `--registry docker.io`. No registry credential is exposed to PR/build/test jobs, stored in source, or embedded in images. Actions are commit-pinned. Releases are serialized; do not queue multiple version tags at once because GitHub concurrency can replace pending runs.
 

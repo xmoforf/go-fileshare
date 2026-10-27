@@ -18,7 +18,7 @@ For dependency updates, change `go.mod`/`go.sum`, recompute `flake.nix`'s `vendo
 
 ## Test Commands
 
-[CI and release gates](docs/releases.md) cover GitHub checks, the pinned Chromium/Firefox/WebKit runtime, versioned local archives, and tag-triggered GHCR and Docker Hub publication. `nix develop -c sh scripts/check-go.sh` combines fresh Go race/vet/module verification and Python contracts. Branch/PR checks never publish images. An approved `v*` Git-tag push triggers native amd64/arm64 image tests and publishes only after every release gate passes; see [tag policy and recovery](docs/releases.md#github-container-releases).
+[CI and release gates](docs/releases.md) cover GitHub checks, the pinned Chromium/Firefox/WebKit runtime, versioned local archives, and tag-triggered GHCR and Docker Hub publication. `nix develop -c sh scripts/check-go.sh` combines fresh Go race/vet/module verification and Python contracts. Branch/PR/manual branch checks include native amd64/arm64 image HTTPS/persistence tests and never publish images. They retain `image-amd64` and `image-arm64` artifacts (exact tested Docker archives and config IDs) for seven days, stamped `ci` with the tested source SHA. An approved `v*` Git-tag push reuses these checks with the real version tag and publishes only after every release gate passes; see [tag policy and recovery](docs/releases.md#github-container-releases).
 
 ```sh
 nix develop -c go test -race ./...
@@ -27,7 +27,7 @@ nix build
 nix flake check
 ```
 
-Container/reference changes also require `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_*.py'` and `python3 tests/compose_smoke.py`; see [Compose verification](docs/compose.md#disposable-verification) for prerequisites, coverage and retained disposable resources. The script tests the actual Compose/Caddy configuration over verified local HTTPS; it is not browser or public-ingress load evidence. Use `python3 tests/compose_smoke.py --image LOCAL_IMAGE` to test an already-built image without rebuilding (the release workflow uses this path).
+Container/reference changes also require `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_*.py'` and `python3 tests/compose_smoke.py`; see [Compose verification](docs/compose.md#disposable-verification) for prerequisites, coverage and retained disposable resources. The script tests the actual Compose/Caddy configuration over verified local HTTPS; it is not browser or public-ingress load evidence. Use `python3 tests/compose_smoke.py --image LOCAL_IMAGE` to test an already-built image without rebuilding (check-only CI and releases use this path).
 
 Binary/systemd reference changes also require `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_systemd.py'` and a disposable real-systemd install/start/restart/update/permissions rehearsal; see [systemd installation](docs/systemd.md). Static checks alone are not runtime acceptance. Direct source builds need Go compatible with `go.mod`, not Nix.
 
