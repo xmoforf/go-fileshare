@@ -11,7 +11,7 @@ Browse files and create expiring file or folder links from a single owner accoun
 | Nix package / local CLI | [Optional Nix build](#optional-nix-build) |
 | NixOS service module | [NixOS installation](docs/nixos.md) |
 
-Use a reviewed source revision or a trusted binary for your architecture. Public binaries/images are not promised; [release documentation](docs/releases.md) covers local candidates and verification.
+Use a reviewed source revision or a trusted binary for your architecture. An explicitly scoped **linux/amd64-only, pre-stable image** is available from public Docker Hub `xmoforf/go-fileshare`; see [verified digest and pull instructions](docs/releases.md#published-amd64-candidate). No ARM image or `latest` tag is published. [Release documentation](docs/releases.md) also covers local candidates and verification.
 
 ## Requirements and build
 

@@ -1,6 +1,29 @@
 # Checks and local release candidates
 
-GitHub Actions is the chosen CI host under the owner's `xmoforf` account. `.github/workflows/checks.yml` runs checks only: read-only repository permission, no saved Git credentials, registry login, artifact upload, tag, release or deployment. Repository creation, remotes and push still require separate approval. No registry is selected.
+GitHub Actions is the chosen CI host under the owner's `xmoforf` account. `.github/workflows/checks.yml` runs checks only: read-only repository permission, no saved Git credentials, registry login, artifact upload, tag, release or deployment. Docker Hub `xmoforf/go-fileshare` is the selected public image repository. Repository creation, remotes and push still require separate approval; CI does not publish.
+
+## Published amd64 candidate
+
+On 2026-10-27, owner approval `go-fileshare-zdt` authorized publication of this **linux/amd64-only, pre-stable candidate** under `go-fileshare-78d`. ARM was explicitly excluded; this is not a full two-architecture release. No `latest` tag was published.
+
+| Identity | Value |
+| --- | --- |
+| Repository | [`xmoforf/go-fileshare`](https://hub.docker.com/r/xmoforf/go-fileshare) (public) |
+| Tag | `v0.1.0-rc.1-amd64-1e15d68` |
+| Source commit | `1e15d68e3258f7d05b0ac39546a8b6d924545cc7` |
+| Embedded version | `v0.1.0-rc.1` |
+| Manifest digest | `sha256:11963294341b75f7c6674d494f569a593aaf88a2f13d81e5870be13204ee1438` |
+| Image/config digest | `sha256:3d0833a583dec9ad4d15a262a1bc6b79e8aa50741c559617af2dac3050ddb5f1` |
+
+Pull the verified content by digest rather than relying on a mutable tag:
+
+```sh
+docker pull --platform linux/amd64 docker.io/xmoforf/go-fileshare@sha256:11963294341b75f7c6674d494f569a593aaf88a2f13d81e5870be13204ee1438
+```
+
+Anonymous public pull and registry manifest/config/platform checks passed. Native amd64 image/API checks, Go race/vet/module checks, Python contracts, Nix checks, six Chromium/Firefox/WebKit viewport runs and the operator backup/restore/replacement rehearsal passed. Nix reused cached derivations; no fresh VM execution is claimed. Pinned govulncheck 1.9.0 scanned source and the exact binary against the database updated 2026-10-21: no reachable/imported-package findings; module-only GO-2026-5932 concerns unused `openpgp`. Full evidence and limitations: [publication report](../.pi/reviews/go-fileshare-78d/report.md).
+
+The scratch image contains only the Go 1.27.3 static binary and complete license notices, with default UID:GID `999:993`. It still requires Linux with working `openat2`, separate readable content/config, writable SQLite state, trusted HTTPS proxy and [public-ingress controls](../SECURITY.md#public-ingress-requirements). Publication does not deploy anything or establish public-ingress safety, native ARM support, cross-version state compatibility, or screen-reader/device certification. Consult [Compose installation](compose.md) and [operations](operations.md) before choosing a deployment; the existing Compose reference builds source and does not automatically select this published image.
 
 ## Check source
 
@@ -60,6 +83,6 @@ Before any separately authorized publication:
 3. Require passing Go race/vet/contracts, Python contracts, Nix checks, all six browser runs, and fresh vulnerability scan. Review results rather than presence of a workflow file.
 4. Confirm MIT provenance attestation and exact Go/module notice inventory remain current; include all notices. Review release notes for known limits and upgrade/rollback behavior. Rehearse old/new versions if claiming compatibility.
 5. Record pending public-ingress/install/security work. Packaging success does not authorize public exposure or close separate readiness blockers.
-6. Obtain approval for concrete destination, artifacts and publication operation. Hosting choice is not publication authority; registry remains undecided.
+6. Obtain approval for concrete destination, artifacts and publication operation. Selecting Docker Hub is not authority for future pushes; each publication needs its own approval.
 
 No automated command turns local candidate builds into release approval. Keep evidence alongside the candidate; do not edit generated metadata to imply checks ran.

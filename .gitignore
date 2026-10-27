@@ -21,3 +21,4 @@
 .direnv/
 .envrc.local.d/
 .worktrees/
+.secrets/
