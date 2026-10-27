@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const readline = require('node:readline');
+const { parseArgs } = require('node:util');
 const { chromium, firefox, webkit } = require('playwright');
 const { checkUI } = require('../ui_browser_test.js');
 const { checkThemes, checkThemeStorage } = require('./theme_browser.cjs');
@@ -102,7 +103,13 @@ async function checkRows(page, listingURL, owner) {
   }
 }
 
+function browserEngines(args) {
+  const { values } = parseArgs({ args, options: { 'chromium-only': { type: 'boolean' } } });
+  return Object.entries(values['chromium-only'] ? { chromium } : { chromium, firefox, webkit });
+}
+
 async function main() {
+  const engines = browserEngines(process.argv.slice(2));
   const work = fs.mkdtempSync(path.join(os.tmpdir(), 'file-share-browsers-'));
   console.log('Evidence directory:', work);
   const binary = process.env.BROWSER_FIXTURE_BINARY || path.join(work, 'fixture');
@@ -126,7 +133,7 @@ async function main() {
     });
     clearTimeout(timer);
     assert.match(url, /^https:\/\/127\.0\.0\.1:\d+$/);
-    for (const [engine, type] of Object.entries({ chromium, firefox, webkit })) {
+    for (const [engine, type] of engines) {
       const browser = await type.launch();
       try {
         for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 }]) {
@@ -214,4 +221,5 @@ async function main() {
     assert.equal(code, 0, 'fixture must stop cleanly');
   }
 }
-main().catch(error => { console.error(error); process.exitCode = 1; });
+if (require.main === module) main().catch(error => { console.error(error); process.exitCode = 1; });
+module.exports = { browserEngines };

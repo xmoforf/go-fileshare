@@ -1,31 +1,40 @@
 name: Checks
 on:
   push:
-    branches: ['**']
+    branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      full:
+        description: Run all release checks without publishing
+        type: boolean
+        default: true
   workflow_call:
+    inputs:
+      full:
+        type: boolean
+        required: true
 permissions:
   contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   images:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - runner: ubuntu-24.04
-            arch: amd64
-          - runner: ubuntu-24.04-arm
-            arch: arm64
+        runner: ${{ fromJSON(inputs.full && '["ubuntu-26.04", "ubuntu-26.04-arm"]' || '["ubuntu-26.04"]') }}
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
     env:
-      ARCH: ${{ matrix.arch }}
+      ARCH: ${{ matrix.runner == 'ubuntu-26.04-arm' && 'arm64' || 'amd64' }}
       VERSION: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'ci' }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: cachix/install-nix-action@d9186cbdca7adedf113a159fa91f725a27866771 # v31
+      - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31.11.3
       - name: Build native versioned image
         run: |
           set -euo pipefail
@@ -51,24 +60,23 @@ jobs:
           docker image inspect --format '{{.Id}}' "$image" > "$RUNNER_TEMP/tested-image/image-id.txt"
           test "$(docker run --rm --network none "$image" -version)" = "file-share $VERSION ($GITHUB_SHA)"
       - name: Native image HTTPS and persistence checks
-        run: |
-          for attempt in 1 2 3 4 5; do
-            echo "Native Compose diagnostic attempt $attempt"
-            python3 .pi/reviews/go-fileshare-3wn/keep-netns-control.py --image "go-fileshare-ci:$GITHUB_SHA-$ARCH"
-          done
+        run: python3 tests/compose_smoke.py --image "go-fileshare-ci:$GITHUB_SHA-$ARCH"
       - name: Operator rehearsal and binary vulnerability scan
+        if: inputs.full
         run: |
           python3 tests/operations_smoke.py "$RUNNER_TEMP/image-build/file-share"
           scanner=$(nix build --no-link --print-out-paths --impure --expr \
             'let f = builtins.getFlake (toString ./.); in (builtins.getAttr builtins.currentSystem f.inputs.nixpkgs.legacyPackages).govulncheck')
           "$scanner/bin/govulncheck" -mode=binary -show verbose "$RUNNER_TEMP/image-build/file-share"
       - name: Export exact tested image
+        if: inputs.full
         run: |
           test "$(docker image inspect --format '{{.Id}}' "go-fileshare-ci:$GITHUB_SHA-$ARCH")" = "$(cat "$RUNNER_TEMP/tested-image/image-id.txt")"
           docker save --output "$RUNNER_TEMP/tested-image/image.tar" "go-fileshare-ci:$GITHUB_SHA-$ARCH"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: inputs.full
         with:
-          name: image-${{ matrix.arch }}
+          name: image-${{ env.ARCH }}
           path: ${{ runner.temp }}/tested-image/
           if-no-files-found: error
           retention-days: 7
@@ -76,34 +84,37 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+        runner: ${{ fromJSON(inputs.full && '["ubuntu-26.04", "ubuntu-26.04-arm"]' || '["ubuntu-26.04"]') }}
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: cachix/install-nix-action@d9186cbdca7adedf113a159fa91f725a27866771 # v31
+      - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31.11.3
       - run: nix develop -c sh scripts/check-go.sh
       - run: nix build
-      - if: matrix.runner == 'ubuntu-24.04'
+      - if: inputs.full && matrix.runner == 'ubuntu-26.04'
         run: nix flake check
-      - if: matrix.runner == 'ubuntu-24.04'
+      - if: inputs.full && matrix.runner == 'ubuntu-26.04'
         run: |
           scanner=$(nix build --no-link --print-out-paths --impure --expr \
             'let f = builtins.getFlake (toString ./.); in (builtins.getAttr builtins.currentSystem f.inputs.nixpkgs.legacyPackages).govulncheck')
           nix develop -c "$scanner/bin/govulncheck" -show verbose ./...
   browsers:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: cachix/install-nix-action@d9186cbdca7adedf113a159fa91f725a27866771 # v31
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31.11.3
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
           cache: npm
       - run: npm ci --ignore-scripts
+      - run: node --test tests/browser_options.test.cjs
       - name: Build browser fixture
         run: nix develop -c env CGO_ENABLED=0 go test -c -o "$RUNNER_TEMP/browser-fixture" .
       - name: Cross-engine checks in pinned Playwright runtime
@@ -116,8 +127,8 @@ jobs:
             --mount "type=bind,src=$RUNNER_TEMP/browser-evidence,dst=/evidence" \
             -e TMPDIR=/evidence -e BROWSER_FIXTURE_BINARY=/fixture -w /work \
             mcr.microsoft.com/playwright:v1.61.1-noble@sha256:5b8f294aff9041b7191c34a4bab3ac270157a28774d4b0660e9743297b697e48 \
-            node --require ./.pi/reviews/go-fileshare-3wn/trace-browser.cjs tests/browser_smoke.cjs
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+            node tests/browser_smoke.cjs ${{ !inputs.full && '--chromium-only' || '' }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: browser-screenshots

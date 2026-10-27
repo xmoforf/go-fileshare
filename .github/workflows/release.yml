@@ -10,9 +10,9 @@ concurrency:
 jobs:
   validate:
     if: github.repository == 'xmoforf/go-fileshare'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -22,6 +22,8 @@ jobs:
   checks:
     needs: validate
     uses: ./.github/workflows/checks.yml
+    with:
+      full: true
   publish:
     needs: checks
     strategy:
@@ -32,15 +34,15 @@ jobs:
             secret: GITHUB_TOKEN
           - registry: docker.io
             secret: DOCKERHUB_TOKEN
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: image-*
           path: ${{ runner.temp }}/images
@@ -53,7 +55,7 @@ jobs:
         run: |
           mkdir -m 700 "$DOCKER_CONFIG"
           python3 scripts/image_release.py "$GITHUB_REF_NAME" --registry "$REGISTRY" --publish "$RUNNER_TEMP/images"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: publication-report-${{ matrix.registry }}

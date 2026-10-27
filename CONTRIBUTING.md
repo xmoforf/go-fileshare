@@ -18,7 +18,9 @@ For dependency updates, change `go.mod`/`go.sum`, recompute `flake.nix`'s `vendo
 
 ## Test Commands
 
-[CI and release gates](docs/releases.md) cover GitHub checks, the pinned Chromium/Firefox/WebKit runtime, versioned local archives, and tag-triggered GHCR and Docker Hub publication. `nix develop -c sh scripts/check-go.sh` combines fresh Go race/vet/module verification and Python contracts. Branch/PR/manual branch checks include native amd64/arm64 image HTTPS/persistence tests and never publish images. They retain `image-amd64` and `image-arm64` artifacts (exact tested Docker archives and config IDs) for seven days, stamped `ci` with the tested source SHA. An approved `v*` Git-tag push reuses these checks with the real version tag and publishes only after every release gate passes; see [tag policy and recovery](docs/releases.md#github-container-releases).
+[CI and release gates](docs/releases.md) separate routine feedback from release qualification. PRs and `main` pushes run amd64 Go race/vet/module/Python checks, a Nix build, one native image/Compose smoke test, and Chromium at desktop and narrow sizes. `nix develop -c sh scripts/check-go.sh` runs the same Go/Python contracts locally.
+
+Manual **Checks** defaults to `full: true`: both native architectures, all six browser combinations, Nix flake checks, vulnerability scans, operator rehearsals and seven-day tested image artifacts. Set `full: false` to exercise the routine path. Both modes are check-only; an approved `v*` tag requests full checks before publication. Release gates and test assertions are not weakened by the lighter PR mode.
 
 ```sh
 nix develop -c go test -race ./...
@@ -34,6 +36,8 @@ Binary/systemd reference changes also require `PYTHONDONTWRITEBYTECODE=1 python3
 NixOS module changes require `nix build .#checks.x86_64-linux.service --print-build-logs` (also included in host `nix flake check`) on a VM-capable Linux builder (KVM recommended; QEMU TCG fallback is slower). The disposable VM uses only synthetic data and checks actual service permissions and persistence; see [NixOS installation and verification](docs/nixos.md). Evaluate ARM with `nix eval --raw .#checks.aarch64-linux.service.drvPath`; claim ARM build/runtime only after executing on a suitable builder. Do not apply a host configuration as a test.
 
 Format Go changes with `gofmt`. Do not weaken Linux confinement or HTTPS origin checks to simplify tests. Tests use temporary synthetic data, never live credentials or shares.
+
+`node --test tests/browser_options.test.cjs` checks browser selection without launching a browser. `npm run test:browser` runs all engines; `npm run test:browser -- --chromium-only` runs the PR subset with the same assertions and both viewport sizes.
 
 For UI regressions, run `FILE_SHARE_BROWSER_FIXTURE=1 go test -run '^TestBrowserFixture$' -v` inside `nix develop`. This starts an opt-in temporary HTTPS fixture with test-only credentials from `server_test.go`; stop it with SIGTERM. Never use production files or expose it publicly. Log in with its test-only owner account, then open `/#/folder/`. It contains 208 synthetic entries. `ui_browser_test.js` defines `checkUI(page)` for a Playwright-compatible browser session; no package install is needed. In Pi's browser tool, submit the function from this file followed by `return await checkUI(page);`. Do not evaluate fetched code; the browser sandbox disables string-based code generation.
 
