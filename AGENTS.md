@@ -6,7 +6,7 @@ Independent Linux Go file-sharing server. Never mutate `/srv/docker` or copy its
 
 Use Beads as canonical work state: `bd prime`, `bd ready`, `bd show <id>`, then `agnt work direct-start <id> --claim`. Read applicable Pi skills. Save plans in `.pi/plans/`. Verify and commit task-owned changes before `agnt work direct-closeout <id> --outcome success --reason "..."`. Preserve unfinished work with `handoff_bead`; never close unfinished tasks.
 
-No hooks or remotes are installed. Initialized with bd 1.2.2 (host Pi checklist targets 1.3.1: compatibility drift, not grounds to auto-upgrade). Auto-export is disabled; closeout explicitly exports/verifies portable `.beads/issues.jsonl`. Dolt is canonical; JSONL is interchange, not a history backup. Preserve tracked audit rows. Do not migrate Beads or install hooks automatically.
+No hooks are installed. `origin` is `https://github.com/xmoforf/go-fileshare.git`. Branch/PR CI is check-only; approved `v*` tag pushes trigger gated GHCR image publication, so tag-push approval must include those registry effects. Existing remote configuration never grants permission for future pushes. Initialized with bd 1.2.2 (host Pi checklist targets 1.3.1: compatibility drift, not grounds to auto-upgrade). Auto-export is disabled; closeout explicitly exports/verifies portable `.beads/issues.jsonl`. Dolt is canonical; JSONL is interchange, not a history backup. Preserve tracked audit rows. Do not migrate Beads or install hooks automatically.
 
 ## Environment
 

@@ -4,6 +4,26 @@ Source lives at [GitHub `xmoforf/go-fileshare`](https://github.com/xmoforf/go-fi
 
 ## GitHub container releases
 
+### Published v1.0.0
+
+Published and anonymously verified on 2026-10-27. [Release run 40447183864](https://github.com/xmoforf/go-fileshare/actions/runs/40447183864) passed every gate, including native image HTTPS/persistence tests on both architectures. Source tag [`v1.0.0`](https://github.com/xmoforf/go-fileshare/tree/v1.0.0) resolves to `d23f1e77ffeb222464bf694375aaadd1230e5aed`.
+
+| Identity | Digest |
+| --- | --- |
+| Multi-platform index (`1.0.0`, initially also `1.0`, `1`, `latest`) | `sha256:588142370aba8fe929a5f1878ee7fb7282f4852b059c86cbdf1918d5914b6504` |
+| Linux amd64 (`1.0.0-amd64`) | `sha256:7ffad37d0415961a7be9b13776d63c7272b7c31fc53a3c41fd9cff54e17011a8` |
+| Linux arm64 (`1.0.0-arm64`) | `sha256:72d7b205258710be7c11ce1f28b9e81431e60b586aa96f241b8203f2f10d79f9` |
+
+```sh
+docker pull ghcr.io/xmoforf/go-fileshare:1.0.0
+# Immutable content pin; Docker selects the native architecture.
+docker pull ghcr.io/xmoforf/go-fileshare@sha256:588142370aba8fe929a5f1878ee7fb7282f4852b059c86cbdf1918d5914b6504
+```
+
+All six tags, both manifests/configs and version/source labels were verified anonymously. An anonymous amd64 pull matched the tested image ID and ran the expected `-version`. Native ARM runtime evidence comes from the release job, not emulation. Durable [publication report](../.pi/reviews/go-fileshare-ad3/publication.json) and [verification summary](../.pi/reviews/go-fileshare-ad3/report.md) retain identity and limits beyond CI artifact expiry. The package was already publicly pullable; no visibility mutation was needed.
+
+### Publishing subsequent versions
+
 Push an approved `vMAJOR.MINOR.PATCH` Git tag (or `vMAJOR.MINOR.PATCH-prerelease`) whose commit is already on `main`. `.github/workflows/release.yml` rejects malformed tags, build metadata (`+...`), numeric prerelease identifiers with leading zeros, and tags too long for Docker. Treat the tag push as authorization for its downstream image publication; do not push a release tag merely to test CI.
 
 The workflow runs reusable Go race/vet/module/Python, Nix, vulnerability and six browser checks. Separate **native** `ubuntu-24.04` and `ubuntu-24.04-arm` jobs build versioned static binaries and scratch images, run the exact images through the existing Compose HTTPS/persistence/shutdown smoke test, rehearse binary operations, and scan each binary. Runtime checks exercise Linux openat2 and SQLite; cross-compilation alone is insufficient. The smoke fixture overrides UID/GID to the runner's non-root IDs; the delivered default remains `999:993` and is checked before promotion.
@@ -28,15 +48,7 @@ Registry preflight fails closed on authentication/network errors and refuses an 
 
 The report records tested config IDs, platform manifest digests, source revision, aliases and verified index digest. Image archives expire after seven days; the report after 90 days. Preserve the approved release report/digests outside expiring CI artifacts. Initial GHCR packages may be private even for public source: verify package visibility and an **anonymous pull** before advertising public availability; changing package visibility is a separate owner-approved action.
 
-After a successful, publicly verified release:
-
-```sh
-docker pull ghcr.io/xmoforf/go-fileshare:1.0.0
-# Production: replace DIGEST with the verified multi-platform index digest.
-docker pull ghcr.io/xmoforf/go-fileshare@sha256:DIGEST
-```
-
-Docker selects the matching architecture. Content/config/state mounts, explicit HTTPS origin and trusted proxy remain required; see [Compose installation](compose.md). The Compose reference still builds source by default; do not assume a published image has been selected. Release publication does not establish public-ingress safety, cross-version state compatibility, screen-reader/device certification, SBOM/signature verification or deployment readiness.
+Use the published version or digest instructions above, replacing them with the verified release identity when upgrading. Docker selects the matching architecture. Content/config/state mounts, explicit HTTPS origin and trusted proxy remain required; see [Compose installation](compose.md). The Compose reference still builds source by default; do not assume a published image has been selected. Release publication does not establish public-ingress safety, cross-version state compatibility, screen-reader/device certification, SBOM/signature verification or deployment readiness.
 
 ## Published amd64 candidate
 

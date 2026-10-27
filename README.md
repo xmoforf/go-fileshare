@@ -11,7 +11,7 @@ Browse files and create expiring file or folder links from a single owner accoun
 | Nix package / local CLI | [Optional Nix build](#optional-nix-build) |
 | NixOS service module | [NixOS installation](docs/nixos.md) |
 
-Source: [GitHub `xmoforf/go-fileshare`](https://github.com/xmoforf/go-fileshare). Version-tagged releases target **linux/amd64 and linux/arm64** at `ghcr.io/xmoforf/go-fileshare`, with exact version tags (for example `1.0.0`) and moving `1.0`, `1`, `latest` aliases. A Git tag is not proof of publication: check the successful [Container release run](https://github.com/xmoforf/go-fileshare/actions/workflows/release.yml) and [release policy](docs/releases.md#github-container-releases) before pulling. Pin a verified digest for deployment.
+Source: [GitHub `xmoforf/go-fileshare`](https://github.com/xmoforf/go-fileshare). **v1.0.0 is published for linux/amd64 and linux/arm64** at `ghcr.io/xmoforf/go-fileshare:1.0.0`. Docker selects the matching architecture. Exact version tags stay fixed; `1.0`, `1`, and `latest` track newer stable releases. See the [verified digest and release policy](docs/releases.md#github-container-releases); pin a digest for deployment. Future Git tags are not proof of publication until their [Container release run](https://github.com/xmoforf/go-fileshare/actions/workflows/release.yml) succeeds.
 
 The older **amd64-only, pre-stable Docker Hub candidate** remains available unchanged; see its [verified digest](docs/releases.md#published-amd64-candidate). GitHub releases do not update Docker Hub or deploy anything.
 
