@@ -686,33 +686,21 @@
 
     var encodedName = encodeURIComponent(item.name);
 
-    if (item.isDir) {
-      var href = '#/' + dir + encodedName + '/';
-      div.innerHTML =
-        '<div class="col-name"><a href="' + escAttr(href) + '">' +
-          '<span class="icon">\uD83D\uDCC1</span>' +
-          '<span class="fname">' + escHtml(item.name) + '</span>' +
-        '</a></div>' +
-        '<div class="col-size">\u2014</div>' +
-        '<div class="col-date">' + fmtDate(item.mtime) + '</div>';
-    } else {
-      var fileHref = baseUrl + dir + encodedName;
-      div.innerHTML =
-        '<div class="col-name"><a href="' + escAttr(fileHref) + '">' +
-          '<span class="icon">' + fileIcon(item.name) + '</span>' +
-          '<span class="fname">' + escHtml(item.name) + '</span>' +
-        '</a></div>' +
-        '<button class="copy-btn" data-href="' + escAttr(fileHref) + '" title="Copy link">\u2398</button>' +
-        '<div class="col-size">' + fmtSize(item.size) + '</div>' +
-        '<div class="col-date">' + fmtDate(item.mtime) + '</div>';
-    }
+    var href = item.isDir ? '#/' + dir + encodedName + '/' : baseUrl + dir + encodedName;
+    var copyHref = item.isDir ? (shareToken ? baseUrl : window.location.origin + '/#/') + dir + encodedName + '/' : href;
+    div.innerHTML =
+      '<div class="col-name"><a href="' + escAttr(href) + '">' +
+        '<span class="icon">' + (item.isDir ? '\uD83D\uDCC1' : fileIcon(item.name)) + '</span>' +
+        '<span class="fname">' + escHtml(item.name) + '</span>' +
+      '</a></div>' +
+      '<div class="col-size">' + (item.isDir ? '\u2014' : fmtSize(item.size)) + '</div>' +
+      '<div class="col-date">' + fmtDate(item.mtime) + '</div>';
 
-    if (item.isDir) {
-      var copy = document.createElement('button'); copy.className = 'copy-btn'; copy.textContent = '\u2398';
-      copy.title = 'Copy folder link'; copy.setAttribute('aria-label', 'Copy folder link for ' + item.name);
-      copy.dataset.href = shareToken ? baseUrl + dir + encodedName + '/' : window.location.origin + '/#/' + dir + encodedName + '/';
-      div.insertBefore(copy, div.querySelector('.col-size'));
-    }
+    var copy = document.createElement('button'); copy.className = 'copy-btn'; copy.textContent = '\u2398';
+    copy.title = item.isDir ? 'Copy folder link' : 'Copy link';
+    if (item.isDir) copy.setAttribute('aria-label', 'Copy folder link for ' + item.name);
+    copy.dataset.href = copyHref;
+    div.insertBefore(copy, div.querySelector('.col-size'));
     if (isOwner) {
       var shareButton = document.createElement('button'); shareButton.className = 'copy-btn file-link-action'; shareButton.textContent = 'Share';
       shareButton.setAttribute('aria-label', 'Share ' + item.name);

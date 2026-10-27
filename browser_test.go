@@ -17,6 +17,9 @@ func TestBrowserFixture(t *testing.T) {
 		t.Skip("interactive browser fixture")
 	}
 	a, root, _ := fixture(t)
+	if err := os.Rename(filepath.Join(root, "folder/sub"), filepath.Join(root, "folder/sub &\"'<>#?%é")); err != nil {
+		t.Fatal(err)
+	}
 	count := 205
 	if mode == "large" {
 		count = 99997 // Together with the three fixture entries: 100,000.

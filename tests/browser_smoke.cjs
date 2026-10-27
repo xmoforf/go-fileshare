@@ -9,6 +9,98 @@ const readline = require('node:readline');
 const { chromium, firefox, webkit } = require('playwright');
 const { checkUI } = require('../ui_browser_test.js');
 
+// Expected URLs are independent of the renderer's data-href and URL helpers.
+async function checkRows(page, listingURL, owner) {
+  const origin = new URL(listingURL).origin;
+  const directory = 'sub &"\'<>#?%é';
+  const encodedDirectory = 'sub%20%26%22\'%3C%3E%23%3F%25%C3%A9/';
+  const base = owner ? origin + '/files/folder/' : listingURL;
+  const hash = owner ? '#/folder/' : '#/';
+  for (const [name, encoded, content] of [
+    ['a #?%é.txt', 'a%20%23%3F%25%C3%A9.txt', 'special'],
+    [directory, encodedDirectory, null],
+  ]) {
+    const isDirectory = content === null;
+    const search = page.getByLabel('Filter files', { exact: true });
+    await search.fill(name);
+    await page.getByText('1 / 208 items', { exact: true }).waitFor({ state: 'visible' });
+    const row = page.locator('#viewport .row');
+    const link = row.getByRole('link', { name, exact: false });
+    const copy = row.getByTitle(isDirectory ? 'Copy folder link' : 'Copy link', { exact: true });
+    assert.equal(await copy.getAttribute('aria-label'), isDirectory ? 'Copy folder link for ' + name : null);
+    assert.equal(await row.locator('.fname').textContent(), name);
+    assert.equal(await link.getAttribute('href'), isDirectory ? hash + encoded : base + encoded);
+    assert.deepEqual(await row.locator('a, button').evaluateAll(controls => controls.map(el => el.tagName)), owner ? ['A', 'BUTTON', 'BUTTON'] : ['A', 'BUTTON']);
+    assert.equal(await row.locator('.col-size').textContent(), isDirectory ? '—' : '7 B');
+    assert.equal(await row.locator('.icon').textContent(), isDirectory ? '📁' : '📄');
+    assert.match(await row.locator('.col-date').textContent(), /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
+    if (owner) {
+      const shareButton = row.getByRole('button', { name: 'Share ' + name, exact: true });
+      await shareButton.focus();
+      await shareButton.press('Enter');
+      assert.equal(await page.locator('#shareTarget').textContent(), 'folder/' + name);
+      await page.locator('#shareDialog').getByRole('button', { name: 'Close', exact: true }).click();
+      assert(await shareButton.evaluate(el => el === document.activeElement), 'row dialog restores trigger focus');
+    }
+    // Stub only the browser clipboard boundary; exercise the real delegated click and fallback.
+    for (const mode of ['clipboard', 'clipboard-rejected', 'fallback', 'fallback-failed']) {
+      await page.evaluate(mode => {
+        const clipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+        const execCommand = Object.getOwnPropertyDescriptor(document, 'execCommand');
+        window.copyCalls = [];
+        window.restoreClipboard = () => {
+          if (clipboard) Object.defineProperty(navigator, 'clipboard', clipboard);
+          else delete navigator.clipboard;
+          if (execCommand) Object.defineProperty(document, 'execCommand', execCommand);
+          else delete document.execCommand;
+          delete window.copyCalls;
+          delete window.restoreClipboard;
+        };
+        Object.defineProperty(navigator, 'clipboard', { configurable: true, value: mode.startsWith('clipboard') ? {
+          writeText(text) {
+            window.copyCalls.push(['clipboard', text]);
+            return mode === 'clipboard' ? Promise.resolve() : Promise.reject(new Error('denied'));
+          },
+        } : undefined });
+        Object.defineProperty(document, 'execCommand', { configurable: true, value(command) {
+          const textarea = document.activeElement;
+          window.copyCalls.push([command, textarea.value.slice(textarea.selectionStart, textarea.selectionEnd)]);
+          return mode === 'fallback';
+        } });
+      }, mode);
+      try {
+        await copy.click();
+        const success = mode === 'clipboard' || mode === 'fallback';
+        await copy.getByText(success ? '✓' : '✗', { exact: true }).waitFor({ state: 'visible' });
+        const expected = isDirectory && owner ? origin + '/' + hash + encoded : base + encoded;
+        assert.deepEqual(await page.evaluate(() => window.copyCalls), [[mode.startsWith('clipboard') ? 'clipboard' : 'copy', expected]]);
+        assert.equal(await page.locator('textarea').count(), 0, 'fallback removes its textarea');
+        assert.equal(await copy.evaluate(el => el.classList.contains('copied')), success);
+        await copy.getByText('⎘', { exact: true }).waitFor({ state: 'visible' });
+      } finally { await page.evaluate(() => window.restoreClipboard()); }
+    }
+    if (isDirectory) {
+      await link.click();
+      await page.getByText('1 items', { exact: true }).waitFor({ state: 'visible' });
+      assert.equal(new URL(page.url()).hash, hash + encoded);
+      const child = page.getByRole('link', { name: /movie\.mp4$/ });
+      assert.equal(await child.getAttribute('href'), base + encoded + 'movie.mp4');
+      const response = await page.context().request.get(await child.getAttribute('href'));
+      assert.equal(response.status(), 200);
+      assert.equal(await response.text(), '0123456789');
+      await page.goto(listingURL);
+      await page.getByText('208 items', { exact: true }).waitFor({ state: 'visible' });
+    } else {
+      const downloaded = page.waitForEvent('download');
+      await link.click();
+      assert.equal((await downloaded).url(), base + encoded);
+      const response = await page.context().request.get(base + encoded);
+      assert.equal(response.status(), 200);
+      assert.equal(await response.text(), content);
+    }
+  }
+}
+
 async function main() {
   const work = fs.mkdtempSync(path.join(os.tmpdir(), 'file-share-browsers-'));
   console.log('Evidence directory:', work);
@@ -51,6 +143,7 @@ async function main() {
             await page.getByLabel('Password', { exact: true }).fill('test-password');
             await page.getByRole('button', { name: 'Log in', exact: true }).click();
             console.log(label, await checkUI(page));
+            await checkRows(page, url + '/#/folder/', true);
             await page.locator('#shareCurrent').click();
             await page.getByLabel('Expires after').selectOption('0');
             const created = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith('/api/shares'));
@@ -70,6 +163,8 @@ async function main() {
             await guest.getByText('208 items', { exact: true }).waitFor({ state: 'visible' });
             assert.equal(await guest.locator('#shareCurrent').isVisible(), false);
             assert.equal(await guest.locator('#manageShares').isVisible(), false);
+            await checkRows(guest, share, false);
+            assert.equal((await recipient.request.get(url + '/files/folder/a%20%23%3F%25%C3%A9.txt')).status(), 401);
             await guest.getByLabel('Filter files', { exact: true }).fill('item-204');
             await guest.getByText('1 / 208 items', { exact: true }).waitFor({ state: 'visible' });
             await guest.screenshot({ path: path.join(work, `${label}-recipient.png`) });
@@ -87,7 +182,7 @@ async function main() {
             await guest.getByText('Not Found', { exact: true }).waitFor({ state: 'visible' });
             await guest.screenshot({ path: path.join(work, `${label}-revoked.png`) });
             assert.deepEqual(errors, []);
-            console.log(`PASS ${label}: owner/recipient/filter/download/revoke`);
+            console.log(`PASS ${label}: owner/recipient file+directory links, clipboard success/fallback/failures, filter/download/revoke`);
           } finally {
             await recipient.close();
             await owner.close();
