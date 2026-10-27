@@ -219,24 +219,17 @@ def main():
             staged = fixture / "file-share.new"
             shutil.copy2(source, staged)
             staged.replace(executable)
-            start()
-            request("/api/shares", 401, owner=True)
-            login(passwords[0])
-            assert inventory() == expected_inventory, "update changed inventory"
-            download(upgrade_share)
-            download(finite)
-            download(expired, 404)
-            download(active, 404)
-            download(revoked, 404)
-            stop()
-            start()
-            login(passwords[0])
-            assert inventory() == expected_inventory
-            download(upgrade_share)
-            download(finite)
-            download(expired, 404)
-            download(active, 404)
-            stop()
+            for _ in range(2):
+                start()
+                request("/api/shares", 401, owner=True)
+                login(passwords[0])
+                assert inventory() == expected_inventory, "update changed inventory"
+                download(upgrade_share)
+                download(finite)
+                download(expired, 404)
+                download(active, 404)
+                download(revoked, 404)
+                stop()
             digest = hashlib.sha256(executable.read_bytes()).hexdigest()
             print(f"PASS {label} replacement/restart: sha256 {digest}", flush=True)
 
