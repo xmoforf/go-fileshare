@@ -51,7 +51,11 @@ jobs:
           docker image inspect --format '{{.Id}}' "$image" > "$RUNNER_TEMP/tested-image/image-id.txt"
           test "$(docker run --rm --network none "$image" -version)" = "file-share $VERSION ($GITHUB_SHA)"
       - name: Native image HTTPS and persistence checks
-        run: python3 tests/compose_smoke.py --image "go-fileshare-ci:$GITHUB_SHA-$ARCH"
+        run: |
+          for attempt in 1 2 3 4 5; do
+            echo "Native Compose diagnostic attempt $attempt"
+            python3 .pi/reviews/go-fileshare-3wn/trace-compose.py --image "go-fileshare-ci:$GITHUB_SHA-$ARCH"
+          done
       - name: Operator rehearsal and binary vulnerability scan
         run: |
           python3 tests/operations_smoke.py "$RUNNER_TEMP/image-build/file-share"
@@ -112,7 +116,7 @@ jobs:
             --mount "type=bind,src=$RUNNER_TEMP/browser-evidence,dst=/evidence" \
             -e TMPDIR=/evidence -e BROWSER_FIXTURE_BINARY=/fixture -w /work \
             mcr.microsoft.com/playwright:v1.61.1-noble@sha256:5b8f294aff9041b7191c34a4bab3ac270157a28774d4b0660e9743297b697e48 \
-            node tests/browser_smoke.cjs
+            node --require ./.pi/reviews/go-fileshare-3wn/trace-browser.cjs tests/browser_smoke.cjs
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
