@@ -1,6 +1,6 @@
 # v1.0.0 release notes
 
-Initial stable container release of the existing application behavior, with matching version/source metadata and native Linux amd64/arm64 verification gates. Publication is established by a successful [Container release run](https://github.com/xmoforf/go-fileshare/actions/workflows/release.yml) and verified GHCR digest, not by this document. Git tags trigger CI publication; the separate local packager remains local-only.
+Initial stable container release of the existing application behavior, with matching version/source metadata and native Linux amd64/arm64 verification gates. Publication is established by a successful [Container release run](https://github.com/xmoforf/go-fileshare/actions/workflows/release.yml) and verified registry digests, not by this document. GHCR and Docker Hub now serve identical v1.0.0 images; the [Docker Hub mirror](docs/releases.md#docker-hub-mirror) reused the native-tested release without rebuilding. Future Git tags trigger CI publication to both registries; the separate local packager remains local-only.
 
 - Single-owner Linux file browser and read-only bearer file/folder links; no uploads, transcoding or multi-user permissions.
 - Compose/Caddy, binary/systemd, Go-source and Nix/NixOS installation references.

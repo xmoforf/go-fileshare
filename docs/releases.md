@@ -1,6 +1,6 @@
 # Checks and releases
 
-Source lives at [GitHub `xmoforf/go-fileshare`](https://github.com/xmoforf/go-fileshare). Branch/PR checks use read-only repository permissions and never publish images. Version-tag pushes run the gated GHCR release workflow below. No workflow creates Git tags, GitHub Releases or deployments. The existing Docker Hub candidate remains unchanged.
+Source lives at [GitHub `xmoforf/go-fileshare`](https://github.com/xmoforf/go-fileshare). Branch/PR checks use read-only repository permissions and never publish images. Version-tag pushes run the gated GHCR and Docker Hub release workflow below. No workflow creates Git tags, GitHub Releases or deployments. The existing Docker Hub candidate remains unchanged.
 
 ## GitHub container releases
 
@@ -22,13 +22,23 @@ docker pull ghcr.io/xmoforf/go-fileshare@sha256:588142370aba8fe929a5f1878ee7fb72
 
 All six tags, both manifests/configs and version/source labels were verified anonymously. An anonymous amd64 pull matched the tested image ID and ran the expected `-version`. Native ARM runtime evidence comes from the release job, not emulation. Durable [publication report](../.pi/reviews/go-fileshare-ad3/publication.json) and [verification summary](../.pi/reviews/go-fileshare-ad3/report.md) retain identity and limits beyond CI artifact expiry. The package was already publicly pullable; no visibility mutation was needed.
 
+### Docker Hub mirror
+
+The same v1.0.0 images are also public at **`docker.io/xmoforf/go-fileshare`**, with all six tags and index/platform/config digests identical to GHCR. On 2026-10-27, the approved mirror copied the native-tested GHCR images by digest without rebuilding or moving the Git tag. Anonymous tag/config checks and an amd64 digest pull/`-version` passed; ARM runtime evidence remains the original native CI job. The older RC tag remains unchanged. See the [Docker Hub publication report](../.pi/reviews/go-fileshare-ad3/dockerhub-publication.json).
+
+```sh
+docker pull docker.io/xmoforf/go-fileshare:1.0.0
+# Same immutable index as GHCR.
+docker pull docker.io/xmoforf/go-fileshare@sha256:588142370aba8fe929a5f1878ee7fb7282f4852b059c86cbdf1918d5914b6504
+```
+
 ### Publishing subsequent versions
 
 Push an approved `vMAJOR.MINOR.PATCH` Git tag (or `vMAJOR.MINOR.PATCH-prerelease`) whose commit is already on `main`. `.github/workflows/release.yml` rejects malformed tags, build metadata (`+...`), numeric prerelease identifiers with leading zeros, and tags too long for Docker. Treat the tag push as authorization for its downstream image publication; do not push a release tag merely to test CI.
 
 The workflow runs reusable Go race/vet/module/Python, Nix, vulnerability and six browser checks. Separate **native** `ubuntu-24.04` and `ubuntu-24.04-arm` jobs build versioned static binaries and scratch images, run the exact images through the existing Compose HTTPS/persistence/shutdown smoke test, rehearse binary operations, and scan each binary. Runtime checks exercise Linux openat2 and SQLite; cross-compilation alone is insufficient. The smoke fixture overrides UID/GID to the runner's non-root IDs; the delivered default remains `999:993` and is checked before promotion.
 
-Only after all jobs pass does a `packages: write` job load the exact tested image archives, verify their platform/config/version/revision, and push them to **`ghcr.io/xmoforf/go-fileshare`** using the job's ephemeral `GITHUB_TOKEN`. No registry credential is exposed to PR/build/test jobs, stored in source, or embedded in images. Actions are commit-pinned. Releases are serialized; do not queue multiple version tags at once because GitHub concurrency can replace pending runs.
+Only after all jobs pass do independent publication jobs load the same tested image archives, verify their platform/config/version/revision, and publish to **`ghcr.io/xmoforf/go-fileshare`** and **`docker.io/xmoforf/go-fileshare`**. GHCR uses the job's ephemeral `GITHUB_TOKEN`; Docker Hub uses username `xmoforf` and the repository Actions secret **`DOCKERHUB_TOKEN`**. Configure that secret with a token permitted to push this Docker Hub repository; restrict its privileges and trusted workflow editors. A missing/invalid secret fails the Docker Hub job, without cancelling GHCR or falling back to another registry's credential. Only publication jobs have `packages: write`; each receives only its selected registry token through `REGISTRY_USERNAME`/`REGISTRY_TOKEN`. The helper accepts only `--registry ghcr.io` (default) or `--registry docker.io`. No registry credential is exposed to PR/build/test jobs, stored in source, or embedded in images. Actions are commit-pinned. Releases are serialized; do not queue multiple version tags at once because GitHub concurrency can replace pending runs.
 
 ### Tag specification
 
@@ -44,15 +54,15 @@ For `v1.0.0`:
 
 All applicable aliases point to the same index digest. Publishing an older maintenance release does not downgrade newer aliases. Prereleases receive only exact version/platform tags, never stable aliases. Docker tags omit the Git `v` prefix; the embedded `-version` and OCI version label retain it. OCI source/URL, title, description, MIT license and full source revision labels identify the image. Scratch payload remains the static binary and complete notices; no shell, source, credentials or application state.
 
-Registry preflight fails closed on authentication/network errors and refuses an existing exact or architecture tag. GHCR tags remain technically mutable; immutability here is publisher policy, not a registry lock. Use digest pins. No automatic partial-release repair or overwrite occurs: if publication partially succeeds, inspect the retained `publication-report` artifact and remote digests before any separately approved recovery. A rerun that encounters partial tags will stop. Other writers to this package can defeat serialization/policy; restrict write access.
+Registry preflight fails closed on authentication/network errors and refuses an existing exact or architecture tag. Registry tags remain technically mutable; immutability here is publisher policy, not a registry lock. Use digest pins. No automatic partial-release repair or overwrite occurs: if publication partially succeeds, inspect the retained `publication-report-ghcr.io` and `publication-report-docker.io` artifacts and remote digests before any separately approved recovery. A rerun that encounters partial tags will stop. Publication across registries is not transactional: one can succeed while the other fails, and neither is automatically rolled back. Alias selection uses each registry's own history. Other writers to these repositories can defeat serialization/policy; restrict write access.
 
-The report records tested config IDs, platform manifest digests, source revision, aliases and verified index digest. Image archives expire after seven days; the report after 90 days. Preserve the approved release report/digests outside expiring CI artifacts. Initial GHCR packages may be private even for public source: verify package visibility and an **anonymous pull** before advertising public availability; changing package visibility is a separate owner-approved action.
+Each report records its destination image, tested config IDs, platform manifest digests, source revision, aliases and verified index digest. Image archives expire after seven days; the report after 90 days. Preserve the approved release report/digests outside expiring CI artifacts. Initial GHCR packages may be private even for public source: verify package visibility and an **anonymous pull** before advertising public availability; changing package visibility is a separate owner-approved action.
 
 Use the published version or digest instructions above, replacing them with the verified release identity when upgrading. Docker selects the matching architecture. Content/config/state mounts, explicit HTTPS origin and trusted proxy remain required; see [Compose installation](compose.md). The Compose reference still builds source by default; do not assume a published image has been selected. Release publication does not establish public-ingress safety, cross-version state compatibility, screen-reader/device certification, SBOM/signature verification or deployment readiness.
 
 ## Published amd64 candidate
 
-On 2026-10-27, owner approval `go-fileshare-zdt` authorized publication of this **linux/amd64-only, pre-stable candidate** under `go-fileshare-78d`. ARM was explicitly excluded; this is not a full two-architecture release. No `latest` tag was published.
+On 2026-10-27, owner approval `go-fileshare-zdt` authorized publication of this **linux/amd64-only, pre-stable candidate** under `go-fileshare-78d`. ARM was explicitly excluded; this is not a full two-architecture release. No `latest` tag was published during that candidate operation; the later stable release above adds it.
 
 | Identity | Value |
 | --- | --- |
@@ -131,6 +141,6 @@ Before any separately authorized publication:
 3. Require passing Go race/vet/contracts, Python contracts, Nix checks, all six browser runs, and fresh vulnerability scan. Review results rather than presence of a workflow file.
 4. Confirm MIT provenance attestation and exact Go/module notice inventory remain current; include all notices. Review release notes for known limits and upgrade/rollback behavior. Rehearse old/new versions if claiming compatibility.
 5. Record pending public-ingress/install/security work. Packaging success does not authorize public exposure or close separate readiness blockers.
-6. Obtain approval for the concrete source/tag, destination and publication operation. A version-tag push triggers automatic gated GHCR publication; its approval must include those effects. Selecting a registry is not authority for arbitrary future pushes. Inspect the executed run and anonymous registry outcome; a workflow file or green build alone is not proof of publication.
+6. Obtain approval for the concrete source/tag, destination and publication operation. A version-tag push triggers automatic gated GHCR and Docker Hub publication; its approval must include those effects. Selecting a registry is not authority for arbitrary future pushes. Inspect the executed run and anonymous registry outcome; a workflow file or green build alone is not proof of publication.
 
 No automated command turns local candidate builds into release approval. Keep evidence alongside the candidate; do not edit generated metadata to imply checks ran.

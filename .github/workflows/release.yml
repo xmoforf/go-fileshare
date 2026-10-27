@@ -84,6 +84,14 @@ jobs:
           retention-days: 7
   publish:
     needs: [checks, images]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - registry: ghcr.io
+            secret: GITHUB_TOKEN
+          - registry: docker.io
+            secret: DOCKERHUB_TOKEN
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -98,15 +106,17 @@ jobs:
           path: ${{ runner.temp }}/images
       - name: Publish tested images and verify index
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REGISTRY: ${{ matrix.registry }}
+          REGISTRY_USERNAME: ${{ matrix.registry == 'ghcr.io' && github.actor || 'xmoforf' }}
+          REGISTRY_TOKEN: ${{ secrets[matrix.secret] }}
           DOCKER_CONFIG: ${{ runner.temp }}/release-docker-auth
         run: |
           mkdir -m 700 "$DOCKER_CONFIG"
-          python3 scripts/image_release.py "$GITHUB_REF_NAME" --publish "$RUNNER_TEMP/images"
+          python3 scripts/image_release.py "$GITHUB_REF_NAME" --registry "$REGISTRY" --publish "$RUNNER_TEMP/images"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
-          name: publication-report
+          name: publication-report-${{ matrix.registry }}
           path: ${{ runner.temp }}/images/publication.json
           if-no-files-found: warn
           retention-days: 90

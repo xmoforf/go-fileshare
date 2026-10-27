@@ -1,6 +1,7 @@
 """Container tag policy and fail-closed registry preflight; no registry writes."""
 import importlib.util
 import io
+import inspect
 import json
 import os
 from pathlib import Path
@@ -51,6 +52,27 @@ class ImageReleaseTests(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(ValueError):
                 module.release_tags(value, [])
 
+    def test_dockerhub_endpoints_are_fixed_and_paginated(self):
+        module = self.module()
+        self.assertIn("registry", inspect.signature(module.registry_tags).parameters)
+        responses = [io.BytesIO(b'{"token":"synthetic"}'),
+                     io.BytesIO(b'{"tags":["1.0.0"]}'), io.BytesIO(b'{"tags":["2.0.0"]}')]
+        for response in responses:
+            response.headers = {}
+        responses[1].headers["Link"] = '</v2/xmoforf/go-fileshare/tags/list?last=1.0.0>; rel="next"'
+        with patch.object(module, "open_url", side_effect=responses) as opened:
+            self.assertEqual(module.registry_tags("xmoforf", "synthetic", registry="docker.io"),
+                             ["1.0.0", "2.0.0"])
+        urls = [call.args[0].full_url for call in opened.call_args_list]
+        self.assertTrue(urls[0].startswith("https://auth.docker.io/token?"))
+        self.assertIn("service=registry.docker.io", urls[0])
+        self.assertTrue(all(url.startswith("https://registry-1.docker.io/v2/xmoforf/go-fileshare/tags/list?")
+                            for url in urls[1:]))
+        with patch.object(module, "open_url") as opened:
+            with self.assertRaises(ValueError):
+                module.registry_tags("xmoforf", "synthetic", registry="other.invalid")
+            opened.assert_not_called()
+
     def test_registry_pages_and_initial_absence(self):
         module = self.module()
         def response(data, link=None):
@@ -96,7 +118,7 @@ class ImageReleaseTests(unittest.TestCase):
     def test_existing_release_stops_before_writes(self):
         module = self.module()
         env = {"GITHUB_SHA": "b" * 40, "GITHUB_REPOSITORY": "xmoforf/go-fileshare",
-               "GITHUB_REF": "refs/tags/v1.0.0", "GITHUB_ACTOR": "xmoforf", "GH_TOKEN": "synthetic"}
+               "GITHUB_REF": "refs/tags/v1.0.0", "REGISTRY_USERNAME": "xmoforf", "REGISTRY_TOKEN": "synthetic"}
         with patch.dict(os.environ, env), \
                 patch.object(module.subprocess, "check_output", return_value="b" * 40), \
                 patch.object(module, "registry_tags", return_value=["1.0.0"]), \
@@ -106,9 +128,17 @@ class ImageReleaseTests(unittest.TestCase):
             run.assert_not_called()
 
     def test_publisher_promotes_loaded_ids_and_checks_remote_index(self):
+        self.exercise_publisher("ghcr.io")
+
+    def test_dockerhub_publisher_promotes_same_tested_images(self):
+        self.exercise_publisher("docker.io")
+
+    def exercise_publisher(self, registry):
         module = self.module()
+        self.assertIn("registry", inspect.signature(module.publish).parameters)
+        image = registry + "/xmoforf/go-fileshare"
         env = {"GITHUB_SHA": "b" * 40, "GITHUB_REPOSITORY": "xmoforf/go-fileshare",
-               "GITHUB_REF": "refs/tags/v1.0.0", "GITHUB_ACTOR": "xmoforf", "GH_TOKEN": "synthetic"}
+               "GITHUB_REF": "refs/tags/v1.0.0", "REGISTRY_USERNAME": "xmoforf", "REGISTRY_TOKEN": "synthetic"}
         ids = {"amd64": "sha256:" + "a" * 64, "arm64": "sha256:" + "c" * 64}
         manifests = {"amd64": "sha256:" + "d" * 64, "arm64": "sha256:" + "e" * 64}
         def output(command, **kwargs):
@@ -137,15 +167,17 @@ class ImageReleaseTests(unittest.TestCase):
             with patch.dict(os.environ, env), patch.object(module, "registry_tags", return_value=[]), \
                     patch.object(module.subprocess, "check_output", side_effect=output), \
                     patch.object(module.subprocess, "run") as run, patch("builtins.print"):
-                module.publish("v1.0.0", directory)
+                module.publish("v1.0.0", directory, registry=registry)
             commands = [call.args[0] for call in run.call_args_list]
+            self.assertIn(["docker", "login", registry, "--username", "xmoforf", "--password-stdin"], commands)
             self.assertEqual([c for c in commands if c[1] == "push"],
-                             [["docker", "push", module.IMAGE + ":1.0.0-" + a] for a in ids])
+                             [["docker", "push", image + ":1.0.0-" + a] for a in ids])
             self.assertEqual([c for c in commands if c[1] == "tag"],
-                             [["docker", "tag", value, module.IMAGE + ":1.0.0-" + a] for a, value in ids.items()])
+                             [["docker", "tag", value, image + ":1.0.0-" + a] for a, value in ids.items()])
             create = next(c for c in commands if "create" in c)
-            self.assertEqual(create[-2:], [module.IMAGE + "@" + d for d in manifests.values()])
+            self.assertEqual(create[-2:], [image + "@" + d for d in manifests.values()])
             report = json.loads((directory / "publication.json").read_text())
+            self.assertEqual(report["image"], image)
             self.assertEqual(report["digest"], "sha256:" + "f" * 64)
             self.assertEqual(report["tags"], ["1.0.0", "1.0", "1", "latest"])
 

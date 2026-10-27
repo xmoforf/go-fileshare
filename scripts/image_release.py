@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Plan GHCR tags; --publish promotes tested image archives (CI release job only)."""
+"""Plan registry tags; --publish promotes tested image archives (CI release jobs only)."""
 import argparse
 import base64
 import json
@@ -11,7 +11,10 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-IMAGE = "ghcr.io/xmoforf/go-fileshare"
+REGISTRIES = {
+    "ghcr.io": ("https://ghcr.io/token", "ghcr.io", "https://ghcr.io/v2/"),
+    "docker.io": ("https://auth.docker.io/token", "registry.docker.io", "https://registry-1.docker.io/v2/"),
+}
 VERSION = re.compile(r"v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?")
 
 
@@ -53,18 +56,24 @@ def release_tags(version, existing):
     return tags
 
 
-def registry_tags(actor, credential):
+def registry_tags(actor, credential, registry="ghcr.io"):
+    if registry not in REGISTRIES:
+        raise ValueError("unsupported registry")
+    if not actor or not credential:
+        raise ValueError("registry credentials are required")
+    token_url, service, base_url = REGISTRIES[registry]
     auth = base64.b64encode(f"{actor}:{credential}".encode()).decode()
-    query = urllib.parse.urlencode({"service": "ghcr.io", "scope": "repository:xmoforf/go-fileshare:pull,push"})
-    request = urllib.request.Request("https://ghcr.io/token?" + query,
+    query = urllib.parse.urlencode({"service": service, "scope": "repository:xmoforf/go-fileshare:pull,push"})
+    request = urllib.request.Request(token_url + "?" + query,
                                      headers={"Authorization": "Basic " + auth})
     try:
         with open_url(request, timeout=30) as response:
             token = json.load(response)["token"]
-        url = "https://ghcr.io/v2/xmoforf/go-fileshare/tags/list?n=100"
+        tags_url = base_url + "xmoforf/go-fileshare/tags/list?"
+        url = tags_url + "n=100"
         tags, visited = [], set()
         while url:
-            if url in visited or not url.startswith("https://ghcr.io/v2/xmoforf/go-fileshare/tags/list?"):
+            if url in visited or not url.startswith(tags_url):
                 raise ValueError("unsafe registry pagination")
             visited.add(url)
             request = urllib.request.Request(url, headers={"Authorization": "Bearer " + token})
@@ -106,7 +115,10 @@ def verify_image(info, arch, version, revision):
         raise ValueError("image platform/config/metadata does not match release")
 
 
-def publish(version, directory):
+def publish(version, directory, registry="ghcr.io"):
+    if registry not in REGISTRIES:
+        raise ValueError("unsupported registry")
+    image = registry + "/xmoforf/go-fileshare"
     revision = os.environ["GITHUB_SHA"]
     if (os.environ.get("GITHUB_REPOSITORY") != "xmoforf/go-fileshare"
             or os.environ.get("GITHUB_REF") != "refs/tags/" + version
@@ -114,8 +126,8 @@ def publish(version, directory):
         raise ValueError("publication requires the expected repository and version tag")
     if subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip() != revision:
         raise ValueError("checkout revision mismatch")
-    actor, credential = os.environ["GITHUB_ACTOR"], os.environ["GH_TOKEN"]
-    tags = release_tags(version, registry_tags(actor, credential))
+    actor, credential = os.environ["REGISTRY_USERNAME"], os.environ["REGISTRY_TOKEN"]
+    tags = release_tags(version, registry_tags(actor, credential, registry=registry))
     images = {}
     for arch in ("amd64", "arm64"):
         bundle = directory / ("image-" + arch)
@@ -126,14 +138,14 @@ def publish(version, directory):
         info = json.loads(subprocess.check_output(["docker", "image", "inspect", image_id]))[0]
         verify_image(info, arch, version, revision)
         images[arch] = image_id
-    report = {"version": version, "revision": revision, "image_ids": images,
+    report = {"image": image, "version": version, "revision": revision, "image_ids": images,
               "tags": tags, "manifests": {}, "status": "publication started; may be partial"}
     report_path = directory / "publication.json"
     report_path.write_text(json.dumps(report, indent=2) + "\n")
-    subprocess.run(["docker", "login", "ghcr.io", "--username", actor, "--password-stdin"],
+    subprocess.run(["docker", "login", registry, "--username", actor, "--password-stdin"],
                    input=credential + "\n", text=True, check=True)
     for arch, image_id in images.items():
-        ref = IMAGE + ":" + tags[0] + "-" + arch
+        ref = image + ":" + tags[0] + "-" + arch
         subprocess.run(["docker", "tag", image_id, ref], check=True)
         subprocess.run(["docker", "push", ref], check=True)
         manifest = json.loads(subprocess.check_output(["docker", "buildx", "imagetools", "inspect", "--raw", ref]))
@@ -145,10 +157,10 @@ def publish(version, directory):
         report_path.write_text(json.dumps(report, indent=2) + "\n")
     command = ["docker", "buildx", "imagetools", "create"]
     for tag in tags:
-        command.extend(["--tag", IMAGE + ":" + tag])
-    command.extend(IMAGE + "@" + digest for digest in report["manifests"].values())
+        command.extend(["--tag", image + ":" + tag])
+    command.extend(image + "@" + digest for digest in report["manifests"].values())
     subprocess.run(command, check=True)
-    ref = IMAGE + ":" + tags[0]
+    ref = image + ":" + tags[0]
     index = json.loads(subprocess.check_output(["docker", "buildx", "imagetools", "inspect", "--raw", ref]))
     members = {m["platform"]["architecture"]: m["digest"] for m in index["manifests"]
                if m["platform"]["os"] == "linux"}
@@ -157,7 +169,7 @@ def publish(version, directory):
     digests = set()
     for tag in tags:
         descriptor = json.loads(subprocess.check_output([
-            "docker", "buildx", "imagetools", "inspect", "--format", "{{json .Manifest}}", IMAGE + ":" + tag]))
+            "docker", "buildx", "imagetools", "inspect", "--format", "{{json .Manifest}}", image + ":" + tag]))
         digests.add(descriptor["digest"])
     if len(digests) != 1:
         raise ValueError("release aliases disagree")
@@ -169,10 +181,11 @@ def publish(version, directory):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("version")
+    parser.add_argument("--registry", choices=REGISTRIES, default="ghcr.io")
     parser.add_argument("--publish", type=Path, help="directory containing tested image-amd64/image-arm64 artifacts")
     args = parser.parse_args()
     release_tags(args.version, [])
     if args.publish:
-        publish(args.version, args.publish)
+        publish(args.version, args.publish, registry=args.registry)
     else:
         print(json.dumps(release_tags(args.version, [])))
