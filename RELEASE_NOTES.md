@@ -1,4 +1,16 @@
-# v1.0.0 release notes
+# Release notes
+
+## v1.0.1 — release-tooling patch
+
+Prepared for release; publication is not confirmed until the tag-triggered workflow and anonymous registry checks succeed.
+
+- Reject malformed registry tag inventories before any publication write, preserving existing-version overwrite protection.
+- Publish the same native-tested amd64/arm64 images to GHCR and Docker Hub through separate gated jobs.
+- Reuse native image HTTPS/persistence, operations and vulnerability checks in branch/PR CI as well as releases.
+
+Application source, dependencies, container payload layout and state/API formats are unchanged from v1.0.0; no migration is added. Release binaries carry the new version/source metadata. This tooling patch does not add cross-version backup/restore evidence or change the upgrade/security limits below. Publication can succeed in one registry and fail in the other; inspect both reports before retrying, and never overwrite exact or partial release tags.
+
+## v1.0.0
 
 Initial stable container release of the existing application behavior, with matching version/source metadata and native Linux amd64/arm64 verification gates. Publication is established by a successful [Container release run](https://github.com/xmoforf/go-fileshare/actions/workflows/release.yml) and verified registry digests, not by this document. GHCR and Docker Hub now serve identical v1.0.0 images; the [Docker Hub mirror](docs/releases.md#docker-hub-mirror) reused the native-tested release without rebuilding. Future Git tags trigger CI publication to both registries; the separate local packager remains local-only.
 
