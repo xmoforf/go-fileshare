@@ -54,7 +54,7 @@ jobs:
         run: |
           for attempt in 1 2 3 4 5; do
             echo "Native Compose diagnostic attempt $attempt"
-            python3 .pi/reviews/go-fileshare-3wn/trace-compose.py --image "go-fileshare-ci:$GITHUB_SHA-$ARCH"
+            python3 .pi/reviews/go-fileshare-3wn/keep-netns-control.py --image "go-fileshare-ci:$GITHUB_SHA-$ARCH"
           done
       - name: Operator rehearsal and binary vulnerability scan
         run: |
