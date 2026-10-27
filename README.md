@@ -86,6 +86,10 @@ Use `./result/bin/file-share` in place of `./file-share` above. The flake target
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for tests, browser fixtures, reproducible builds, dependency/toolchain updates and vulnerability scans. [Release checks](docs/releases.md) cover packaging and architecture verification. Building this independent repository does not migrate or update an existing installation; [source provenance](THIRD_PARTY_NOTICES.md#project-source) records its extraction boundary.
 
+## Themes
+
+**Choose theme** opens a searchable, keyboard-accessible picker with Light/Dark and ten curated Catppuccin, Nord, Atom One and Rose Pine variants. Apply saves only in this browser, separately for the owner page and each shared-folder URL. Cancel/Escape keeps the current theme; **Use system default** clears the choice. Palettes are bundled, adapted for UI contrast and never fetched at runtime. See [theme controls](docs/usage.md#themes) and [palette provenance](THIRD_PARTY_NOTICES.md#theme-palettes).
+
 ## License
 
-Project-owned code and UI: [MIT](LICENSE), copyright (c) 2026 xmoforf. Redistribute `LICENSE`, [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and `licenses/` with source or binaries. Nix and Docker packages include these notices; plain `go build` requires bundling them separately.
+Project-owned code and UI: [MIT](LICENSE), copyright (c) 2026 xmoforf. Imported theme palettes retain their authors' MIT notices. Redistribute `LICENSE`, [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and `licenses/` with source or binaries. Nix and Docker packages include these notices; plain `go build` requires bundling them separately.

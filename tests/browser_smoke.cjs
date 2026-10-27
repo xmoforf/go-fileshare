@@ -8,6 +8,7 @@ const path = require('node:path');
 const readline = require('node:readline');
 const { chromium, firefox, webkit } = require('playwright');
 const { checkUI } = require('../ui_browser_test.js');
+const { checkThemes, checkThemeStorage } = require('./theme_browser.cjs');
 
 // Expected URLs are independent of the renderer's data-href and URL helpers.
 async function checkRows(page, listingURL, owner) {
@@ -138,10 +139,15 @@ async function main() {
             page.setDefaultTimeout(10000);
             const errors = [];
             page.on('pageerror', error => errors.push(error.message));
+            const external = [];
+            owner.on('request', request => { if (new URL(request.url()).origin !== url) external.push(request.url()); });
+            recipient.on('request', request => { if (new URL(request.url()).origin !== url) external.push(request.url()); });
             await page.goto(url + '/#/folder/');
             await page.getByLabel('Username', { exact: true }).fill('owner');
             await page.getByLabel('Password', { exact: true }).fill('test-password');
             await page.getByRole('button', { name: 'Log in', exact: true }).click();
+            console.log(label, await checkThemes(page));
+            await checkThemeStorage(browser, url, viewport);
             console.log(label, await checkUI(page));
             await checkRows(page, url + '/#/folder/', true);
             await page.locator('#shareCurrent').click();
@@ -163,6 +169,14 @@ async function main() {
             await guest.getByText('208 items', { exact: true }).waitFor({ state: 'visible' });
             assert.equal(await guest.locator('#shareCurrent').isVisible(), false);
             assert.equal(await guest.locator('#manageShares').isVisible(), false);
+            console.log(label, 'recipient', await checkThemes(guest));
+            await guest.evaluate(() => localStorage.setItem(':theme', '"dark"'));
+            await guest.getByRole('button', { name: 'Choose theme', exact: true }).click();
+            await guest.getByLabel('Theme', { exact: true }).selectOption('rose-pine-dawn');
+            await guest.getByRole('button', { name: 'Apply', exact: true }).click();
+            assert.equal(await guest.evaluate(() => localStorage.getItem(':theme')), '"dark"', 'share preference cannot overwrite root preference');
+            await guest.reload();
+            assert.equal(await guest.locator('html').getAttribute('data-theme'), 'rose-pine-dawn');
             await checkRows(guest, share, false);
             assert.equal((await recipient.request.get(url + '/files/folder/a%20%23%3F%25%C3%A9.txt')).status(), 401);
             await guest.getByLabel('Filter files', { exact: true }).fill('item-204');
@@ -182,6 +196,7 @@ async function main() {
             await guest.getByText('Not Found', { exact: true }).waitFor({ state: 'visible' });
             await guest.screenshot({ path: path.join(work, `${label}-revoked.png`) });
             assert.deepEqual(errors, []);
+            assert.deepEqual(external, [], 'themes and UI must stay same-origin');
             console.log(`PASS ${label}: owner/recipient file+directory links, clipboard success/fallback/failures, filter/download/revoke`);
           } finally {
             await recipient.close();

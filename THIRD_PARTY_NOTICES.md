@@ -27,6 +27,24 @@ Third-party components retain their original licenses; the project MIT grant doe
 
 SQLite's `LICENSE-3RD-PARTY.md` is its upstream inventory, **not this application's dependency inventory**. It is deliberately retained whole, including notices for upstream tools, tests, optional extensions and unlinked modules. In particular, its MPL-2.0 entry does not mean this application links that component. `go list -deps .` on Linux amd64 links the modules above except go-isatty and go-strftime; it does not import sqlite/vec. Recheck other platforms and after upgrades. libc's notices include musl, go-netdb, Go and Nixpkgs; memory includes Go/mmap-go notices and a logo attribution reference. No upstream logo is distributed here.
 
+## Theme palettes
+
+The theme catalog added under `go-fileshare-aas` is separate from the initial project-source attestation above. Ten names were selected from [iTerm2-Color-Schemes revision 27cbbb5ee7e98ff15484e7342b07a20606260176](https://github.com/mbadolato/iTerm2-Color-Schemes/tree/27cbbb5ee7e98ff15484e7342b07a20606260176). Its collection MIT license explicitly leaves individual themes under their authors' terms. We verified the author sources below, rather than treating collection metadata as blanket permission.
+
+| UI adaptations | Author source revision | MIT notice under `licenses/themes/` |
+| --- | --- | --- |
+| Collection selection | `27cbbb5ee7e98ff15484e7342b07a20606260176` | `collection/LICENSE` — Mark Badolato |
+| Catppuccin Latte, Frappe, Macchiato, Mocha | [catppuccin/palette](https://github.com/catppuccin/palette/tree/07d02aa110ef9eb7e7427afca5c73ba9cf7f8ebd) | `catppuccin/LICENSE` — 2021 Catppuccin |
+| Nord | [nordtheme/nord](https://github.com/nordtheme/nord/tree/1cef71605416a222e57225b544540ce0fcec18d4) | `nord/LICENSE` — 2016-present Sven Greb |
+| Rose Pine, Moon, Dawn | [rose-pine/rose-pine-palette](https://github.com/rose-pine/rose-pine-palette/tree/92af52b465ab6e47437aca223c9b8d3009a2023b) | `rose-pine/LICENSE` — mvllow |
+| Atom One Dark, Light | [atom/atom syntax packages](https://github.com/atom/atom/tree/1c3bd35ce238dc0491def9e1780d04748d8e18af/packages) | `atom-dark/LICENSE`, `atom-light/LICENSE` — 2016 GitHub Inc. |
+
+[Exact provenance](licenses/themes/provenance.json) records source URLs/revisions, SHA-256 hashes, collection comparisons, author roles and UI adjustments. Author palette source files and full notices are retained alongside it. Only the five recorded author colors per theme feed the UI; the full source palettes are evidence, not runtime imports. Background/input share a color; raised/hover surfaces blend 4% foreground into background; secondary text/borders use 85%. Accent and status colors are adjusted toward foreground where needed for contrast. Built-in Light/Dark remain project-owned and also receive contrast repairs.
+
+Atom uses its original syntax colors instead of the collection's terminal-specific adjustments; Rose Pine Dawn uses author text `#464261` instead of collection `#575279`. Unverified bright ANSI and terminal selection colors are not imported. Gruvbox and TokyoNight were replaced during license review, not redistributed under assumed terms. No upstream executable, CSS file or JavaScript is loaded by the browser. No upstream endorsement is implied.
+
+`index.html` retains the full applicable notices in a comment beside the bundled palette data, so browser responses and embedded binaries also carry them. The notice tree additionally accompanies packaged distributions. Updates are manual and reviewed; see [contributor procedure](CONTRIBUTING.md#updating-themes).
+
 ## Redistribution
 
 Carry `LICENSE`, this file and the entire `licenses/` directory alongside source and binary releases. Retain copyright notices, license conditions and disclaimers; BSD terms also prohibit implied endorsement. SQLite's public-domain statement is retained without relabeling it MIT. These permissive dependency terms can coexist with the project's MIT grant.

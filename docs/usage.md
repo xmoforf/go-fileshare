@@ -28,9 +28,19 @@ Expiry/revocation blocks new requests, including HEAD and range requests. Downlo
 
 ## Keyboard and large folders
 
-Tab/Shift+Tab reaches links and actions, including offscreen rows. On a filename, Arrow Up/Down moves between entries; Home/End jumps to first/last. Opening a directory focuses its filter. Native buttons work with Enter/Space; dialogs have Close buttons (the required login dialog cannot be canceled).
+Tab/Shift+Tab reaches links and actions, including offscreen rows. On a filename, Arrow Up/Down moves between entries; Home/End jumps to first/last. Opening a directory focuses its filter. Native buttons work with Enter/Space; dialogs have Close or Cancel buttons (the required login dialog cannot be canceled).
 
 The list scrolls continuously and mounts only nearby rows plus a retained focus row. Use the directory filter rather than browser Find for names not mounted in the page. Filtering/sorting covers the whole listing, which still consumes browser memory. A 100,000-entry test is not a promise for every phone, browser or storage device.
+
+## Themes
+
+Choose **Choose theme** in the toolbar. Search names with ordinary text (case-insensitive, not regex); Tab to the native **Theme** list and use arrow keys or type-ahead. Choose **Apply** to save. Search and selection do not preview or change the current theme. If filtering removes the selection, choose a visible result before applying. No matches disables Apply. **Cancel** or Escape discards the draft and returns focus to the toolbar button.
+
+Choices: Light, Dark, Catppuccin Latte/Frappe/Macchiato/Mocha, Nord, Atom One Dark/Light and Rose Pine/Moon/Dawn. These are representative UI adaptations from a pinned collection snapshot, not a popularity ranking or exact terminal renderings. Colors, secondary surfaces and status cues are adjusted for readability; upstream authors do not endorse this UI.
+
+**Use system default** clears the saved preference and applies the current OS light/dark setting (dark if unavailable). The OS setting is read at page load and reset, not continuously. Explicit Light/Dark choices remain supported, including older saved preferences. Unknown or malformed preferences fall back safely. If browser storage is denied, changes work for the current page but may not persist; reset cannot erase storage the browser refuses to access.
+
+Preferences stay in local storage for this origin and pathname: the owner page and each shared-folder link have separate settings; navigating subfolders within one link keeps its theme. Nothing is sent to the server or another site. Themes need no external network; file listings still require the server. A saved theme also colors the login dialog, but its required modal login must finish before the toolbar can be used. Browser/OS forced-color overrides remain enabled.
 
 ## Browsers, downloads and media
 
