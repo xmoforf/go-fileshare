@@ -1,6 +1,6 @@
-# Release candidate notes
+# v1.0.0 release notes
 
-Pre-stable source candidate; no published version is implied. The local packager assigns an explicit version and records the source commit in `build.json` and `file-share -version`.
+Initial stable container release of the existing application behavior, with matching version/source metadata and native Linux amd64/arm64 verification gates. Publication is established by a successful [Container release run](https://github.com/xmoforf/go-fileshare/actions/workflows/release.yml) and verified GHCR digest, not by this document. Git tags trigger CI publication; the separate local packager remains local-only.
 
 - Single-owner Linux file browser and read-only bearer file/folder links; no uploads, transcoding or multi-user permissions.
 - Compose/Caddy, binary/systemd, Go-source and Nix/NixOS installation references.
@@ -11,7 +11,7 @@ Pre-stable source candidate; no published version is implied. The local packager
 
 Back up the entire stopped state directory before replacing binaries. Restoring an old database can resurrect revoked links and discard newer shares; reconcile/re-revoke before reopening ingress. See [operations](docs/operations.md). Code replacement of the same revision does not establish cross-version database compatibility.
 
-Require Linux 5.6+ with openat2, trusted HTTPS and separately configured public-ingress controls. There is no global transfer cap or response write-idle deadline in the app. See [SECURITY.md](SECURITY.md). Pre-stable format/API changes remain possible; future candidates must describe their migration and rollback limits here.
+Require Linux 5.6+ with openat2, trusted HTTPS and separately configured public-ingress controls. There is no global transfer cap or response write-idle deadline in the app. See [SECURITY.md](SECURITY.md). The v1.0.0 designation does not establish compatibility with every pre-stable database or promise automatic migrations. Future releases must describe state/API compatibility and migration/rollback limits here; never assume a stopped backup is safe to restore without reconciling revoked links.
 
 ## Evidence required per candidate
 

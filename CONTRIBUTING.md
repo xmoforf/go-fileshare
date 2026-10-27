@@ -18,7 +18,7 @@ For dependency updates, change `go.mod`/`go.sum`, recompute `flake.nix`'s `vendo
 
 ## Test Commands
 
-[CI and local release gates](docs/releases.md) cover GitHub checks, the pinned Chromium/Firefox/WebKit runner, versioned Linux archives and local Docker image exports. `nix develop -c sh scripts/check-go.sh` combines fresh Go race/vet/module verification and Python contracts. No workflow publishes artifacts.
+[CI and release gates](docs/releases.md) cover GitHub checks, the pinned Chromium/Firefox/WebKit runtime, versioned local archives, and tag-triggered GHCR publication. `nix develop -c sh scripts/check-go.sh` combines fresh Go race/vet/module verification and Python contracts. Branch/PR checks never publish images. An approved `v*` Git-tag push triggers native amd64/arm64 image tests and publishes only after every release gate passes; see [tag policy and recovery](docs/releases.md#github-container-releases).
 
 ```sh
 nix develop -c go test -race ./...
@@ -27,7 +27,7 @@ nix build
 nix flake check
 ```
 
-Container/reference changes also require `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_*.py'` and `python3 tests/compose_smoke.py`; see [Compose verification](docs/compose.md#disposable-verification) for prerequisites, coverage and retained disposable resources. The script tests the actual Compose/Caddy configuration over verified local HTTPS; it is not browser or public-ingress load evidence.
+Container/reference changes also require `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_*.py'` and `python3 tests/compose_smoke.py`; see [Compose verification](docs/compose.md#disposable-verification) for prerequisites, coverage and retained disposable resources. The script tests the actual Compose/Caddy configuration over verified local HTTPS; it is not browser or public-ingress load evidence. Use `python3 tests/compose_smoke.py --image LOCAL_IMAGE` to test an already-built image without rebuilding (the release workflow uses this path).
 
 Binary/systemd reference changes also require `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_systemd.py'` and a disposable real-systemd install/start/restart/update/permissions rehearsal; see [systemd installation](docs/systemd.md). Static checks alone are not runtime acceptance. Direct source builds need Go compatible with `go.mod`, not Nix.
 
@@ -87,4 +87,4 @@ scanner=$(nix build --no-link --print-out-paths --impure --expr \
 
 Network access is needed for the vulnerability database. Retain tool/compiler versions, database update date and output; an unavailable database/tool is a release-check blocker. Assess module-only findings separately from imported-package/reachable-symbol findings. See [SECURITY.md](SECURITY.md) for the current result and reporting limitations. The scanner covers Go source dependencies, not host/proxy/image vulnerabilities.
 
-Only task-owned changes belong in commits. Publication, deployment and Git remote operations require separate approval. The owner approved MIT for project-owned code; third-party terms remain separate. When upgrading Go or modules, refresh the exact upstream notices and inventory in `THIRD_PARTY_NOTICES.md` and `licenses/`, run `go mod verify`, and check notices are included in package/release outputs. New imported code/assets need explicit provenance and compatible terms; do not infer rights from availability.
+Only task-owned changes belong in commits. Publication, deployment and Git remote operations require separate approval. Version-tag push approval must explicitly cover the automatic GHCR writes it triggers; branch pushes remain check-only. The owner approved MIT for project-owned code; third-party terms remain separate. When upgrading Go or modules, refresh the exact upstream notices and inventory in `THIRD_PARTY_NOTICES.md` and `licenses/`, run `go mod verify`, and check notices are included in package/release outputs. New imported code/assets need explicit provenance and compatible terms; do not infer rights from availability.

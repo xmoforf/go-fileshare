@@ -1,8 +1,10 @@
 name: Checks
 on:
   push:
+    branches: ['**']
   pull_request:
   workflow_dispatch:
+  workflow_call:
 permissions:
   contents: read
 jobs:
@@ -38,5 +40,23 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --ignore-scripts
-      - run: npx playwright install --with-deps chromium firefox webkit
-      - run: nix develop -c npm run test:browser
+      - name: Build browser fixture
+        run: nix develop -c env CGO_ENABLED=0 go test -c -o "$RUNNER_TEMP/browser-fixture" .
+      - name: Cross-engine checks in pinned Playwright runtime
+        run: |
+          mkdir "$RUNNER_TEMP/browser-evidence"
+          docker run --name file-share-browser-check --network none --cap-drop ALL \
+            --security-opt no-new-privileges --user "$(id -u):$(id -g)" \
+            --mount "type=bind,src=$GITHUB_WORKSPACE,dst=/work,readonly" \
+            --mount "type=bind,src=$RUNNER_TEMP/browser-fixture,dst=/fixture,readonly" \
+            --mount "type=bind,src=$RUNNER_TEMP/browser-evidence,dst=/evidence" \
+            -e TMPDIR=/evidence -e BROWSER_FIXTURE_BINARY=/fixture -w /work \
+            mcr.microsoft.com/playwright:v1.61.1-noble@sha256:5b8f294aff9041b7191c34a4bab3ac270157a28774d4b0660e9743297b697e48 \
+            node tests/browser_smoke.cjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: browser-screenshots
+          path: ${{ runner.temp }}/browser-evidence/file-share-browsers-*/*.png
+          if-no-files-found: warn
+          retention-days: 7

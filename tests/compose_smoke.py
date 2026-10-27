@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Disposable Compose HTTPS contract check; retains stopped resources for inspection."""
+import argparse
 import concurrent.futures
 import http.cookiejar
 import json
@@ -24,7 +25,7 @@ def run(*args, **kwargs):
     return result.stdout
 
 
-def main():
+def main(image=None):
     if not __debug__:
         raise SystemExit("assertions required; do not use python -O")
     assert (ROOT / "compose.yaml").is_file(), "missing supported compose.yaml"
@@ -50,7 +51,8 @@ def main():
         sock.bind(("127.0.0.1", 0))
         port = sock.getsockname()[1]
     origin = f"https://localhost:{port}"
-    image = project + ":local"
+    prebuilt = image is not None
+    image = image or project + ":local"
     env = dict(os.environ, FILE_SHARE_IMAGE=image, FILE_SHARE_ORIGIN=origin,
                FILE_SHARE_SITE="https://localhost", FILE_SHARE_BIND="127.0.0.1",
                FILE_SHARE_HTTPS_PORT=str(port), FILE_SHARE_HTTP_PORT="0",
@@ -71,8 +73,11 @@ def main():
     config = json.loads(compose("config", "--format", "json"))
     assert not config["services"]["fileshare"].get("ports"), "raw HTTP published"
     assert all(p["host_ip"] == "127.0.0.1" for p in config["services"]["caddy"]["ports"])
-    print("Building application image", flush=True)
-    compose("build", "fileshare")
+    if prebuilt:
+        run("docker", "image", "inspect", image)
+    else:
+        print("Building application image", flush=True)
+        compose("build", "fileshare")
     password = secrets.token_urlsafe(24)
     hashed = run("docker", "run", "--rm", "--network", "none", "-i", image,
                  "-hash-password", input=password + "\n").strip()
@@ -202,4 +207,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    if not __debug__:
+        raise SystemExit("assertions required; do not use python -O")
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--image", help="test this local image without rebuilding")
+    main(parser.parse_args().image)

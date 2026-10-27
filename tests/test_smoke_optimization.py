@@ -47,7 +47,8 @@ class SmokeOptimizationTest(unittest.TestCase):
                             stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=10)
                         expected = "assertions required; do not use python -O"
                         if not flags and optimize is None:
-                            expected = "unexpected effect: " + first_effect
+                            effect = "argparse.ArgumentParser.parse_args" if invocation == "script" else first_effect
+                            expected = "unexpected effect: " + effect
                         self.assertEqual(result.returncode, 1, result.stderr)
                         self.assertEqual(result.stdout, "")
                         self.assertEqual(result.stderr, expected + "\n")

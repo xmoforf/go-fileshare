@@ -11,7 +11,9 @@ Browse files and create expiring file or folder links from a single owner accoun
 | Nix package / local CLI | [Optional Nix build](#optional-nix-build) |
 | NixOS service module | [NixOS installation](docs/nixos.md) |
 
-Use a reviewed source revision or a trusted binary for your architecture. An explicitly scoped **linux/amd64-only, pre-stable image** is available from public Docker Hub `xmoforf/go-fileshare`; see [verified digest and pull instructions](docs/releases.md#published-amd64-candidate). No ARM image or `latest` tag is published. [Release documentation](docs/releases.md) also covers local candidates and verification.
+Source: [GitHub `xmoforf/go-fileshare`](https://github.com/xmoforf/go-fileshare). Version-tagged releases target **linux/amd64 and linux/arm64** at `ghcr.io/xmoforf/go-fileshare`, with exact version tags (for example `1.0.0`) and moving `1.0`, `1`, `latest` aliases. A Git tag is not proof of publication: check the successful [Container release run](https://github.com/xmoforf/go-fileshare/actions/workflows/release.yml) and [release policy](docs/releases.md#github-container-releases) before pulling. Pin a verified digest for deployment.
+
+The older **amd64-only, pre-stable Docker Hub candidate** remains available unchanged; see its [verified digest](docs/releases.md#published-amd64-candidate). GitHub releases do not update Docker Hub or deploy anything.
 
 ## Requirements and build
 
