@@ -24,16 +24,8 @@ jobs:
     uses: ./.github/workflows/checks.yml
     with:
       full: true
-  publish:
+  publish-ghcr:
     needs: checks
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - registry: ghcr.io
-            secret: GITHUB_TOKEN
-          - registry: docker.io
-            secret: DOCKERHUB_TOKEN
     runs-on: ubuntu-26.04
     permissions:
       contents: read
@@ -48,9 +40,9 @@ jobs:
           path: ${{ runner.temp }}/images
       - name: Publish tested images and verify index
         env:
-          REGISTRY: ${{ matrix.registry }}
-          REGISTRY_USERNAME: ${{ matrix.registry == 'ghcr.io' && github.actor || 'xmoforf' }}
-          REGISTRY_TOKEN: ${{ secrets[matrix.secret] }}
+          REGISTRY: ghcr.io
+          REGISTRY_USERNAME: ${{ github.actor }}
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DOCKER_CONFIG: ${{ runner.temp }}/release-docker-auth
         run: |
           mkdir -m 700 "$DOCKER_CONFIG"
@@ -58,7 +50,36 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
-          name: publication-report-${{ matrix.registry }}
+          name: publication-report-ghcr.io
+          path: ${{ runner.temp }}/images/publication.json
+          if-no-files-found: warn
+          retention-days: 90
+  publish-dockerhub:
+    needs: checks
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: image-*
+          path: ${{ runner.temp }}/images
+      - name: Publish tested images and verify index
+        env:
+          REGISTRY: docker.io
+          REGISTRY_USERNAME: xmoforf
+          REGISTRY_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          DOCKER_CONFIG: ${{ runner.temp }}/release-docker-auth
+        run: |
+          mkdir -m 700 "$DOCKER_CONFIG"
+          python3 scripts/image_release.py "$GITHUB_REF_NAME" --registry "$REGISTRY" --publish "$RUNNER_TEMP/images"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: publication-report-docker.io
           path: ${{ runner.temp }}/images/publication.json
           if-no-files-found: warn
           retention-days: 90
