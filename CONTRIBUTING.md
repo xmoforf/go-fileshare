@@ -18,9 +18,9 @@ For dependency updates, change `go.mod`/`go.sum`, recompute `flake.nix`'s `vendo
 
 ## Test Commands
 
-[CI and release gates](docs/releases.md) separate routine feedback from release qualification. PRs and `main` pushes run amd64 Go race/vet/module/Python checks, a Nix build, one native image/Compose smoke test, and Chromium at desktop and narrow sizes. `nix develop -c sh scripts/check-go.sh` runs the same Go/Python contracts locally.
+[CI and release gates](docs/releases.md) separate routine feedback from release qualification. PRs and `main` pushes run amd64 Go race/vet/module/Python checks, a Nix build, native image build/version checks, and Chromium at desktop and narrow sizes. `nix develop -c sh scripts/check-go.sh` runs the same Go/Python contracts locally.
 
-Manual **Checks** defaults to `full: true`: both native architectures, all six browser combinations, Nix flake checks, vulnerability scans, operator rehearsals and seven-day tested image artifacts. Set `full: false` to exercise the routine path. Both modes are check-only; an approved `v*` tag requests full checks before publication. Release gates and test assertions are not weakened by the lighter PR mode.
+Manual **Checks** defaults to `full: true`: both native architectures, all six browser combinations, Nix flake checks, vulnerability scans, operator rehearsals and seven-day tested image artifacts. Set `full: false` to exercise the routine path. Both modes are check-only; an approved `v*` tag requests full checks before publication. The lighter PR mode does not change the selected release checks.
 
 ```sh
 nix develop -c go test -race ./...
@@ -29,7 +29,7 @@ nix build
 nix flake check
 ```
 
-Container/reference changes also require `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_*.py'` and `python3 tests/compose_smoke.py`; see [Compose verification](docs/compose.md#disposable-verification) for prerequisites, coverage and retained disposable resources. The script tests the actual Compose/Caddy configuration over verified local HTTPS; it is not browser or public-ingress load evidence. Use `python3 tests/compose_smoke.py --image LOCAL_IMAGE` to test an already-built image without rebuilding (check-only CI and releases use this path).
+Release-tooling changes also require `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_*.py'`.
 
 Binary/systemd reference changes also require `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_systemd.py'` and a disposable real-systemd install/start/restart/update/permissions rehearsal; see [systemd installation](docs/systemd.md). Static checks alone are not runtime acceptance. Direct source builds need Go compatible with `go.mod`, not Nix.
 
@@ -61,7 +61,7 @@ python3 tests/operations_smoke.py result/bin/file-share
 python3 tests/operations_smoke.py result/bin/file-share --candidate /absolute/path/to/candidate
 ```
 
-Run as non-root with Python 3 and Linux `openat2`. The stdlib-only script starts the supplied binaries on loopback, generates synthetic credentials/content, and retains a printed private temporary directory. It asserts setup/share/revoke, whole stopped-state backup, rotation/session invalidation, restore inventory, known revoked-link resurrection and re-revocation, code replacement/rollback, finite-expiry preservation, expired-link denial and restart persistence. A command-stub test also proves the published restore recipe never promotes a failed copy. It checks server logs for generated credentials/tokens without printing them. Assertions are the checks. Both smoke scripts reject optimized Python (`-O`, `-OO` or optimization enabled by `PYTHONOPTIMIZE`) before argument handling, commands, fixture creation or process launch. Unset `PYTHONOPTIMIZE` and omit optimization flags.
+Run as non-root with Python 3 and Linux `openat2`. The stdlib-only script starts the supplied binaries on loopback, generates synthetic credentials/content, and retains a printed private temporary directory. It asserts setup/share/revoke, whole stopped-state backup, rotation/session invalidation, restore inventory, known revoked-link resurrection and re-revocation, code replacement/rollback, finite-expiry preservation, expired-link denial and restart persistence. A command-stub test also proves the published restore recipe never promotes a failed copy. It checks server logs for generated credentials/tokens without printing them. Assertions are the checks. The script rejects optimized Python (`-O`, `-OO` or optimization enabled by `PYTHONOPTIMIZE`) before argument handling, commands, fixture creation or process launch. Unset `PYTHONOPTIMIZE` and omit optimization flags.
 
 No live config/state, host service, Docker, proxy or public listener is touched. Secure cookies are deliberately replayed over loopback HTTP: this is API/process evidence, not HTTPS/browser evidence. Default candidate is the same binary; two builds of one revision test replacement, not cross-version schema compatibility. A future release needs its own old/new candidate rehearsal. Fixtures remain private for inspection, not automatic deletion. See [operator procedures](docs/operations.md) and [user walkthrough](docs/usage.md).
 

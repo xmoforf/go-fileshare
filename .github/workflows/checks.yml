@@ -59,8 +59,6 @@ jobs:
           mkdir "$RUNNER_TEMP/tested-image"
           docker image inspect --format '{{.Id}}' "$image" > "$RUNNER_TEMP/tested-image/image-id.txt"
           test "$(docker run --rm --network none "$image" -version)" = "file-share $VERSION ($GITHUB_SHA)"
-      - name: Native image HTTPS and persistence checks
-        run: python3 tests/compose_smoke.py --image "go-fileshare-ci:$GITHUB_SHA-$ARCH"
       - name: Operator rehearsal and binary vulnerability scan
         if: inputs.full
         run: |

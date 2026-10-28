@@ -35,7 +35,7 @@ Provide the password on stdin from a trusted, non-logging terminal/input source;
 
 **Default published ports bind only to 127.0.0.1.** Application HTTP port 8080 is never published. Only this project's private Docker network connects Caddy to the app; do not attach unrelated containers. Caddy runs non-root, drops capabilities except `NET_BIND_SERVICE` (needed by its official binary and ports 80/443), and cannot write its root filesystem. The app drops all capabilities. Only explicit state mounts are writable.
 
-For public certificates, public DNS must resolve the site to the intended ingress and ACME challenges must reach Caddy on public port 80 or 443. A loopback-only installation cannot obtain these certificates without upstream forwarding. Do not open ports merely to make startup pass. Configure trusted ingress/VPN/firewall routing deliberately; public exposure is a separate operator action. The disposable test below instead uses a local CA, without changing system trust.
+For public certificates, public DNS must resolve the site to the intended ingress and ACME challenges must reach Caddy on public port 80 or 443. A loopback-only installation cannot obtain these certificates without upstream forwarding. Do not open ports merely to make startup pass. Configure trusted ingress/VPN/firewall routing deliberately; public exposure is a separate operator action.
 
 Stock Caddy provides HTTPS and streaming proxying, **not all public-ingress protections** required by [SECURITY.md](../SECURITY.md). Before changing `FILE_SHARE_BIND` to an externally reachable address, provide aggregate active-request/connection limits (including HTTP/2 streams), bounded queueing, per-client abuse/login controls and stalled-reader progress limits at an outer ingress. A connection cap does not bound multiplexed requests. This reference intentionally does not claim to be a complete public DDoS/availability boundary. CPU/memory/PID/file-descriptor limits are containment, not admission control or capacity guarantees; qualify them for your workload.
 
@@ -47,7 +47,7 @@ docker compose ps
 
 `--wait` checks app readiness, not certificate issuance or browser readiness. Verify HTTPS at your exact origin with a trusted certificate, log in, create a synthetic share, open it anonymously, and revoke it before serving real data. Caddy disables HTTP/3 here (TCP 80/443 only). Access logging is not enabled; runtime/proxy error logs can still contain sensitive URLs. Restrict log access. Docker's `local` log driver rotates logs.
 
-Caddy is pinned by version and digest; refresh deliberately and rerun the smoke after security updates. The application image is built from the current checkout. For upgrades, record the old image ID and source commit, build/test a distinct local tag via `FILE_SHARE_IMAGE`, and retain the prior image plus a consistent state backup. Do not treat the mutable `:local` tag as rollback history.
+Caddy is pinned by version and digest; refresh deliberately after security updates. The application image is built from the current checkout. For upgrades, record the old image ID and source commit, build/test a distinct local tag via `FILE_SHARE_IMAGE`, and retain the prior image plus a consistent state backup. Do not treat the mutable `:local` tag as rollback history.
 
 ## Caddy rate-limit example
 
@@ -114,7 +114,7 @@ docker compose -f compose.yaml -f compose.ratelimit.yaml run --rm --no-deps -T c
   caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 ```
 
-Use both `-f` arguments for subsequent Compose operations. Starting or replacing a deployment remains an explicit operator action. Keep the previous image/config for rollback. Refresh the Caddy image digests and module version deliberately, then validate again. The existing stock-Caddy smoke test does not exercise this override.
+Use both `-f` arguments for subsequent Compose operations. Starting or replacing a deployment remains an explicit operator action. Keep the previous image/config for rollback. Refresh the Caddy image digests and module version deliberately, then validate again.
 
 **Rate is not concurrency.** These limits count request arrivals, not active downloads, connections or HTTP/2 streams. Per-IP limiter state also grows with distinct clients. This example does not establish bounded queueing, reserved owner capacity or a response write-idle policy. Keep the [remaining ingress requirements](../SECURITY.md#public-ingress-requirements); do not substitute a short total response timeout that interrupts progressing downloads. Before public exposure, verify those controls and overload, stalled readers, long downloads, Range/HEAD and disconnect propagation on the actual ingress.
 
@@ -127,20 +127,10 @@ docker compose stop caddy
 
 Stop allowances are 40 seconds, above the app's 30-second drain deadline. Stop the app first when deliberately draining downloads through the proxy. Long remaining transfers can be interrupted at the deadline. Restart logs out owner sessions but preserves shares and revocations in SQLite. `docker compose up -d --wait` starts the same persistent mounts again.
 
-Back up the entire state directory while the app is stopped, preserving permissions; never copy only a live SQLite database. Keep backups outside the served tree. Caddy data holds private certificate keys (and the test CA key in smoke fixtures); protect it like credentials. Do not delete state or Caddy data to fix a startup failure. Restoring old state can resurrect revoked shares. Password rotation requires replacing the auth contents and restarting/recreating the app; if atomically replacing the bind-mounted file, recreate the container so it sees the new inode.
+Back up the entire state directory while the app is stopped, preserving permissions; never copy only a live SQLite database. Keep backups outside the served tree. Caddy data holds private certificate keys; protect it like credentials. Do not delete state or Caddy data to fix a startup failure. Restoring old state can resurrect revoked shares. Password rotation requires replacing the auth contents and restarting/recreating the app; if atomically replacing the bind-mounted file, recreate the container so it sees the new inode.
 
 For step-by-step [credential rotation, stopped backup, restricted restore and upgrades](operations.md), use the host mount paths from this project's env file. Restores must reapply revocations before reopening ingress; recreate the app after replacing mounted state directories or auth files. Follow the [owner/recipient walkthrough](usage.md) for first-use verification.
 
 ## Other reverse proxies
 
 Keep the raw HTTP listener private. Terminate trusted HTTPS for exactly the configured origin; preserve Host, Origin, cookies and the `X-Requested-With` header. Forward all paths/query strings without rewriting bearer tokens, and preserve Range/HEAD/conditional requests. Do not cache authenticated responses or bearer content; retain no-store/no-referrer headers. Stream without full-response buffering; propagate client disconnects upstream. Use a write-idle/progress policy, not a short total-response timeout that cuts off healthy long downloads. The app ignores forwarded client-IP headers: enforce per-client limits at trusted ingress rather than expecting the app to do so. Avoid logging bearer paths/query strings. Verify these contracts against your chosen proxy; support is not implied by a successful health probe.
-
-## Disposable verification
-
-```sh
-python3 tests/compose_smoke.py
-```
-
-Requires Python 3 (stdlib only), local Unix-socket Docker access, a non-root invoking user, available Docker network address space and access to build/pinned image inputs. The script rejects optimized Python (`-O`, `-OO` or optimization enabled by `PYTHONOPTIMIZE`) before commands or fixture creation because assertions enforce its safety checks. Unset `PYTHONOPTIMIZE` and omit optimization flags. Set at most one of `DOCKER_HOST` and `DOCKER_CONTEXT`; ambiguous targets are rejected and the validated Unix endpoint is pinned for child commands. Uses unique project names, synthetic files/credentials/state, a loopback ephemeral port and Caddy's local CA. Verifies TLS against that CA (no insecure TLS bypass), owner/recipient API flows, Origin rejection, cookie flags, Range/HEAD, effective identity/mount protections, persistence/revocation and an active 16 MiB download across SIGTERM (reading pauses until the app listener closes while the process remains alive). Does not use a browser or public ACME.
-
-The script stops but deliberately retains containers, network and printed fixture directories, even on failure. Inspect them before explicitly removing only that test project's resources; never run a broad prune. Fixtures contain synthetic credentials and private test CA keys. Repeated runs consume network address pools until cleaned up. No production path or global trust configuration is touched.

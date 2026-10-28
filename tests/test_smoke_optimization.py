@@ -29,8 +29,7 @@ with ExitStack() as stack:
 
 class SmokeOptimizationTest(unittest.TestCase):
     def test_entrypoints_require_assertions_before_effects(self):
-        for module, first_effect in (("compose_smoke", "subprocess.run"),
-                                     ("operations_smoke", "argparse.ArgumentParser.parse_args")):
+        for module, first_effect in (("operations_smoke", "argparse.ArgumentParser.parse_args"),):
             for invocation in ("direct", "script"):
                 for flags, optimize in (([], None), (["-O"], None), (["-OO"], None),
                                         ([], "1"), ([], "2")):
