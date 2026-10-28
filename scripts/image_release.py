@@ -2,6 +2,7 @@
 """Plan registry tags; --publish promotes tested image archives (CI release jobs only)."""
 import argparse
 import base64
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -152,12 +153,13 @@ def publish(version, directory, registry="ghcr.io"):
         ref = image + ":" + tags[0] + "-" + arch
         subprocess.run(["docker", "tag", image_id, ref], check=True)
         subprocess.run(["docker", "push", ref], check=True)
-        manifest = json.loads(subprocess.check_output(["docker", "buildx", "imagetools", "inspect", "--raw", ref]))
-        if manifest["config"]["digest"] != image_id:
-            raise ValueError("published config differs from tested image")
-        descriptor = json.loads(subprocess.check_output([
-            "docker", "buildx", "imagetools", "inspect", "--format", "{{json .Manifest}}", ref]))
-        report["manifests"][arch] = descriptor["digest"]
+        raw = subprocess.check_output(["docker", "buildx", "imagetools", "inspect", "--raw", ref])
+        manifest = json.loads(raw)
+        digest = "sha256:" + hashlib.sha256(raw).hexdigest()
+        # Docker stores identify images by config digest (classic) or manifest digest (containerd).
+        if image_id not in (manifest["config"]["digest"], digest):
+            raise ValueError("published identity differs from tested image")
+        report["manifests"][arch] = digest
         report_path.write_text(json.dumps(report, indent=2) + "\n")
     command = ["docker", "buildx", "imagetools", "create"]
     for tag in tags:

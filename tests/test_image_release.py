@@ -1,4 +1,5 @@
 """Container tag policy and fail-closed registry preflight; no registry writes."""
+import hashlib
 import importlib.util
 import io
 import inspect
@@ -181,14 +182,27 @@ class ImageReleaseTests(unittest.TestCase):
     def test_dockerhub_publisher_promotes_same_tested_images(self):
         self.exercise_publisher("docker.io")
 
-    def exercise_publisher(self, registry):
+    def test_publisher_accepts_manifest_ids_from_containerd_store(self):
+        for registry in ("ghcr.io", "docker.io"):
+            with self.subTest(registry=registry):
+                self.exercise_publisher(registry, manifest_ids=True)
+
+    def test_publisher_rejects_changed_remote_image_before_promotion(self):
+        for manifest_ids in (False, True):
+            with self.subTest(manifest_ids=manifest_ids):
+                self.exercise_publisher("ghcr.io", manifest_ids=manifest_ids, mismatch=True)
+
+    def exercise_publisher(self, registry, manifest_ids=False, mismatch=False):
         module = self.module()
         self.assertIn("registry", inspect.signature(module.publish).parameters)
         image = registry + "/xmoforf/go-fileshare"
         env = {"GITHUB_SHA": "b" * 40, "GITHUB_REPOSITORY": "xmoforf/go-fileshare",
                "GITHUB_REF": "refs/tags/v1.0.0", "REGISTRY_USERNAME": "xmoforf", "REGISTRY_TOKEN": "synthetic"}
-        ids = {"amd64": "sha256:" + "a" * 64, "arm64": "sha256:" + "c" * 64}
-        manifests = {"amd64": "sha256:" + "d" * 64, "arm64": "sha256:" + "e" * 64}
+        configs = {"amd64": "sha256:" + "a" * 64, "arm64": "sha256:" + "c" * 64}
+        raw_manifests = {a: json.dumps({"schemaVersion": 2, "config": {"digest": digest}}).encode()
+                         for a, digest in configs.items()}
+        manifests = {a: "sha256:" + hashlib.sha256(raw).hexdigest() for a, raw in raw_manifests.items()}
+        ids = manifests if manifest_ids else configs
         def output(command, **kwargs):
             if command[0] == "git":
                 return "b" * 40
@@ -202,9 +216,13 @@ class ImageReleaseTests(unittest.TestCase):
                         "org.opencontainers.image.licenses": "MIT"}}}])
             arch = next((a for a in ids if command[-1].endswith("-" + a)), None)
             if "--raw" in command:
-                return json.dumps({"config": {"digest": ids[arch]}} if arch else {
+                if arch:
+                    if mismatch:
+                        return json.dumps({"config": {"digest": "sha256:" + "0" * 64}}).encode()
+                    return raw_manifests[arch]
+                return json.dumps({
                     "manifests": [{"platform": {"os": "linux", "architecture": a}, "digest": d}
-                                  for a, d in manifests.items()]})
+                                  for a, d in manifests.items()]}).encode()
             return json.dumps({"digest": manifests[arch] if arch else "sha256:" + "f" * 64})
         with tempfile.TemporaryDirectory() as tmp:
             directory = Path(tmp)
@@ -215,6 +233,14 @@ class ImageReleaseTests(unittest.TestCase):
             with patch.dict(os.environ, env), patch.object(module, "registry_tags", return_value=[]), \
                     patch.object(module.subprocess, "check_output", side_effect=output), \
                     patch.object(module.subprocess, "run") as run, patch("builtins.print"):
+                if mismatch:
+                    with self.assertRaisesRegex(ValueError, "published .* differs from tested image"):
+                        module.publish("v1.0.0", directory, registry=registry)
+                    commands = [call.args[0] for call in run.call_args_list]
+                    self.assertFalse(any("create" in c for c in commands))
+                    self.assertEqual([c for c in commands if c[1] == "push"],
+                                     [["docker", "push", image + ":1.0.0-amd64"]])
+                    return
                 module.publish("v1.0.0", directory, registry=registry)
             commands = [call.args[0] for call in run.call_args_list]
             self.assertIn(["docker", "login", registry, "--username", "xmoforf", "--password-stdin"], commands)
@@ -226,6 +252,8 @@ class ImageReleaseTests(unittest.TestCase):
             self.assertEqual(create[-2:], [image + "@" + d for d in manifests.values()])
             report = json.loads((directory / "publication.json").read_text())
             self.assertEqual(report["image"], image)
+            self.assertEqual(report["image_ids"], ids)
+            self.assertEqual(report["manifests"], manifests)
             self.assertEqual(report["digest"], "sha256:" + "f" * 64)
             self.assertEqual(report["tags"], ["1.0.0", "1.0", "1", "latest"])
 
