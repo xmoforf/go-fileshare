@@ -1,161 +1,66 @@
-# Checks and releases
+# Release procedures
 
-Source lives at [GitHub `xmoforf/go-fileshare`](https://github.com/xmoforf/go-fileshare). Branch/PR/manual checks use read-only repository permissions and never publish images. Version-tag pushes run the gated GHCR and Docker Hub release workflow below. No workflow creates Git tags, GitHub Releases or deployments. The existing Docker Hub candidate remains unchanged.
+For maintainers publishing container images or building local binary archives. Installation instructions are in the [Compose](compose.md) and [systemd](systemd.md) guides; user-facing changes belong in [release notes](../RELEASE_NOTES.md).
 
-## Check-only CI
+## Release prerequisites
 
-`.github/workflows/checks.yml` has two modes on Ubuntu 26.04 runners:
+1. Select a reviewed commit on `main` and a version. Record state/API compatibility, upgrade steps, and known issues.
+2. Run the full [test matrix](testing.md), including native amd64/arm64 checks, all browser engine/viewport combinations, operations rehearsals, and fresh vulnerability scans.
+3. Verify bundled notices and artifact identities. Rehearse old/new binaries when claiming cross-version compatibility.
+4. Obtain approval for the exact version-tag push and its GHCR/Docker Hub publication effects. Branch pushes remain check-only; deployment is separate.
 
-| Mode | Checks |
-| --- | --- |
-| PRs and `main` pushes; manual `full: false` | Native amd64 Go race/vet/module/Python contracts, Nix build, image build/version checks, Chromium desktop and narrow journeys |
-| Manual `full: true` (default); release calls | Native amd64 **and** arm64 contracts/builds/image-version checks, operator rehearsals, source/binary vulnerability scans, host Nix flake checks, and all six Chromium/Firefox/WebKit viewport combinations |
+Release tags use `vMAJOR.MINOR.PATCH` with an optional prerelease suffix. Build metadata, numeric prerelease identifiers with leading zeros, malformed tags, and Docker-overlength tags are rejected. Validate without publishing using `python3 scripts/image_release.py v1.0.4`.
 
-No diagnostic wrappers, repeated attempts or error suppression run in either mode. Superseded PR checks are cancelled; publication is not. Both modes have read-only repository permissions and receive no registry credentials. Full manual runs rehearse release gates without publishing. Direct Go shutdown tests and browser assertions remain required.
+## Build and verify
 
-Full runs retain `image-amd64` and `image-arm64` for seven days, each containing `image.tar` and its tested Docker image ID in `image-id.txt` (a config digest with the classic image store, or a manifest digest with the containerd image store). Ordinary branch runs stamp images `ci` with the tested source SHA; release calls use the real tag. Record run/source SHA, native job results and archive identities before expiry. These artifacts record native image build/version checks, not proxy integration, registry publication or the separate local package checks below. Use an approved Checks dispatch to test a non-main branch; never create a synthetic release tag or rerun a publisher for testing.
+The tag-triggered workflow runs `.github/workflows/checks.yml` with `full: true`. Native runners build static binaries and scratch images, check version/source identity, run operations tests, and scan the binaries. The publisher consumes those exact tested image archives rather than rebuilding them.
 
-Actions are pinned to release commit SHAs, with readable version comments. `.github/dependabot.yml` requests grouped weekly action-update PRs once on the default branch; it does not auto-merge. Review breaking changes and test updates rather than leaving pins frozen. The Playwright package and container remain matched; their container OS need not match the host runner. `.github/actionlint.yaml` adds only the two verified 26.04 hosted labels missing from actionlint 1.7.12's built-in list.
-
-## GitHub container releases
-
-### Published v1.0.0
-
-Published and anonymously verified on 2026-10-27. [Release run 40447183864](https://github.com/xmoforf/go-fileshare/actions/runs/40447183864) passed every gate, including native image HTTPS/persistence tests on both architectures. Source tag [`v1.0.0`](https://github.com/xmoforf/go-fileshare/tree/v1.0.0) resolves to `d23f1e77ffeb222464bf694375aaadd1230e5aed`.
-
-| Identity | Digest |
-| --- | --- |
-| Multi-platform index (`1.0.0`, initially also `1.0`, `1`, `latest`) | `sha256:588142370aba8fe929a5f1878ee7fb7282f4852b059c86cbdf1918d5914b6504` |
-| Linux amd64 (`1.0.0-amd64`) | `sha256:7ffad37d0415961a7be9b13776d63c7272b7c31fc53a3c41fd9cff54e17011a8` |
-| Linux arm64 (`1.0.0-arm64`) | `sha256:72d7b205258710be7c11ce1f28b9e81431e60b586aa96f241b8203f2f10d79f9` |
+For local binary/image archives, use Linux, the pinned Nix environment, Python 3.12+, and an archive-capable Docker Buildx builder. Commit the reviewed source first; the packager reads `git archive HEAD`, refuses tracked changes, and excludes untracked files.
 
 ```sh
-docker pull ghcr.io/xmoforf/go-fileshare:1.0.0
-# Immutable content pin; Docker selects the native architecture.
-docker pull ghcr.io/xmoforf/go-fileshare@sha256:588142370aba8fe929a5f1878ee7fb7282f4852b059c86cbdf1918d5914b6504
-```
-
-All six tags, both manifests/configs and version/source labels were verified anonymously. An anonymous amd64 pull matched the tested image ID and ran the expected `-version`. Native ARM runtime evidence comes from the release job, not emulation. Durable [publication report](../.pi/reviews/go-fileshare-ad3/publication.json) and [verification summary](../.pi/reviews/go-fileshare-ad3/report.md) retain identity and limits beyond CI artifact expiry. The package was already publicly pullable; no visibility mutation was needed.
-
-### Docker Hub mirror
-
-The same v1.0.0 images are also public at **`docker.io/xmoforf/go-fileshare`**, with all six tags and index/platform/config digests identical to GHCR. On 2026-10-27, the approved mirror copied the native-tested GHCR images by digest without rebuilding or moving the Git tag. Anonymous tag/config checks and an amd64 digest pull/`-version` passed; ARM runtime evidence remains the original native CI job. The older RC tag remains unchanged. See the [Docker Hub publication report](../.pi/reviews/go-fileshare-ad3/dockerhub-publication.json).
-
-```sh
-docker pull docker.io/xmoforf/go-fileshare:1.0.0
-# Same immutable index as GHCR.
-docker pull docker.io/xmoforf/go-fileshare@sha256:588142370aba8fe929a5f1878ee7fb7282f4852b059c86cbdf1918d5914b6504
-```
-
-### Publishing subsequent versions
-
-Push an approved `vMAJOR.MINOR.PATCH` Git tag (or `vMAJOR.MINOR.PATCH-prerelease`) whose commit is already on `main`. `.github/workflows/release.yml` rejects malformed tags, build metadata (`+...`), numeric prerelease identifiers with leading zeros, and tags too long for Docker. Treat the tag push as authorization for its downstream image publication; do not push a release tag merely to test CI.
-
-The release workflow explicitly requests `full: true` for reusable Go race/vet/module/Python, Nix, vulnerability and six browser checks. The same reusable checks workflow includes **native** `ubuntu-26.04` and `ubuntu-26.04-arm` jobs that build versioned static binaries and scratch images, verify each image's `-version` output, rehearse binary operations, and scan each binary. Native Go tests exercise Linux openat2 and SQLite; cross-compilation alone is insufficient. The delivered image's default user `999:993` is checked before promotion.
-
-Only after all jobs pass do independent publication jobs load the same tested image archives, verify their platform/config/version/revision, and publish to **`ghcr.io/xmoforf/go-fileshare`** and **`docker.io/xmoforf/go-fileshare`**. GHCR uses the job's ephemeral `GITHUB_TOKEN`; Docker Hub uses username `xmoforf` and the repository Actions secret **`DOCKERHUB_TOKEN`**. Configure that secret with a token permitted to push this Docker Hub repository; restrict its privileges and trusted workflow editors. A missing/invalid secret fails the Docker Hub job, without cancelling GHCR or falling back to another registry's credential. Only the GHCR publication job has `packages: write`; Docker Hub has only `contents: read` on its GitHub token. Each job receives only its selected registry token through `REGISTRY_USERNAME`/`REGISTRY_TOKEN`. The helper accepts only `--registry ghcr.io` (default) or `--registry docker.io`. No registry credential is exposed to PR/build/test jobs, stored in source, or embedded in images. Actions are commit-pinned. Releases are serialized; do not queue multiple version tags at once because GitHub concurrency can replace pending runs.
-
-### Tag specification
-
-For `v1.0.0`:
-
-| Tag | Meaning |
-| --- | --- |
-| `1.0.0` | Multi-platform index containing tested Linux amd64 and arm64 manifests; never overwritten by this workflow |
-| `1.0.0-amd64`, `1.0.0-arm64` | Exact tested platform images; never overwritten by this workflow |
-| `1.0` | Highest published stable patch in the 1.0 line |
-| `1` | Highest published stable release in major version 1 |
-| `latest` | Highest published stable release overall |
-
-All applicable aliases point to the same index digest. Publishing an older maintenance release does not downgrade newer aliases. Prereleases receive only exact version/platform tags, never stable aliases. Docker tags omit the Git `v` prefix; the embedded `-version` and OCI version label retain it. OCI source/URL, title, description, MIT license and full source revision labels identify the image. Scratch payload remains the static binary and complete notices; no shell, source, credentials or application state.
-
-Registry preflight fails closed on authentication/network errors and refuses an existing exact or architecture tag. Registry tags remain technically mutable; immutability here is publisher policy, not a registry lock. Use digest pins. No automatic partial-release repair or overwrite occurs: if publication partially succeeds, inspect the retained `publication-report-ghcr.io` and `publication-report-docker.io` artifacts and remote digests before any separately approved recovery. A rerun that encounters partial tags will stop. Publication across registries is not transactional: one can succeed while the other fails, and neither is automatically rolled back. Alias selection uses each registry's own history. Other writers to these repositories can defeat serialization/policy; restrict write access.
-
-Each report records its destination image, tested Docker image IDs, platform manifest digests, source revision, aliases and verified index digest. Publication checks each remote manifest against the tested config or manifest digest, then promotes the digest of those exact verified manifest bytes. Image archives expire after seven days; the report after 90 days. Preserve the approved release report/digests outside expiring CI artifacts. Initial GHCR packages may be private even for public source: verify package visibility and an **anonymous pull** before advertising public availability; changing package visibility is a separate owner-approved action.
-
-Use the published version or digest instructions above, replacing them with the verified release identity when upgrading. Docker selects the matching architecture. Content/config/state mounts, explicit HTTPS origin and trusted proxy remain required; see [Compose installation](compose.md). The Compose reference still builds source by default; do not assume a published image has been selected. Release publication does not establish public-ingress safety, cross-version state compatibility, screen-reader/device certification, SBOM/signature verification or deployment readiness.
-
-## Published amd64 candidate
-
-On 2026-10-27, owner approval `go-fileshare-zdt` authorized publication of this **linux/amd64-only, pre-stable candidate** under `go-fileshare-78d`. ARM was explicitly excluded; this is not a full two-architecture release. No `latest` tag was published during that candidate operation; the later stable release above adds it.
-
-| Identity | Value |
-| --- | --- |
-| Repository | [`xmoforf/go-fileshare`](https://hub.docker.com/r/xmoforf/go-fileshare) (public) |
-| Tag | `v0.1.0-rc.1-amd64-1e15d68` |
-| Source commit | `1e15d68e3258f7d05b0ac39546a8b6d924545cc7` |
-| Embedded version | `v0.1.0-rc.1` |
-| Manifest digest | `sha256:11963294341b75f7c6674d494f569a593aaf88a2f13d81e5870be13204ee1438` |
-| Image/config digest | `sha256:3d0833a583dec9ad4d15a262a1bc6b79e8aa50741c559617af2dac3050ddb5f1` |
-
-Pull the verified content by digest rather than relying on a mutable tag:
-
-```sh
-docker pull --platform linux/amd64 docker.io/xmoforf/go-fileshare@sha256:11963294341b75f7c6674d494f569a593aaf88a2f13d81e5870be13204ee1438
-```
-
-Anonymous public pull and registry manifest/config/platform checks passed. Native amd64 image/API checks, Go race/vet/module checks, Python contracts, Nix checks, six Chromium/Firefox/WebKit viewport runs and the operator backup/restore/replacement rehearsal passed. Nix reused cached derivations; no fresh VM execution is claimed. Pinned govulncheck 1.9.0 scanned source and the exact binary against the database updated 2026-10-21: no reachable/imported-package findings; module-only GO-2026-5932 concerns unused `openpgp`. Full evidence and limitations: [publication report](../.pi/reviews/go-fileshare-78d/report.md).
-
-The scratch image contains only the Go 1.27.3 static binary and complete license notices, with default UID:GID `999:993`. It still requires Linux with working `openat2`, separate readable content/config, writable SQLite state, trusted HTTPS proxy and [public-ingress controls](../SECURITY.md#public-ingress-requirements). Publication does not deploy anything or establish public-ingress safety, native ARM support, cross-version state compatibility, or screen-reader/device certification. Consult [Compose installation](compose.md) and [operations](operations.md) before choosing a deployment; the existing Compose reference builds source and does not automatically select this published image.
-
-## Check source
-
-Use Linux with `openat2`, Nix, Python 3.11+, Node 24 and Docker Buildx for local image export. Go comes from the locked flake. Python 3.12+ is required by the packager's safe tar extraction filter. Do not use `python -O`: artifact verification relies on assertions.
-
-```sh
-nix develop -c sh scripts/check-go.sh
-nix build
-nix flake check
-npm ci --ignore-scripts
-# On a supported disposable Ubuntu runner; --with-deps installs OS packages.
-npx playwright install --with-deps chromium firefox webkit
-nix develop -c npm run test:browser
-```
-
-Do not run `--with-deps` on a managed host without permission. The browser runner compiles the existing synthetic HTTPS fixture, starts it on loopback, and runs all three engines at 1280×800 and 390×844. Missing engines fail the command. It checks owner login, keyboard traversal/focus/filtering, preset-only expiry controls and all four finite expiry values plus Never, folder-share creation, anonymous listing/download and revocation. Screenshots remain in the printed temporary directory. The fixture stops in `finally`; self-signed TLS exceptions apply only to synthetic browser contexts. No live credentials/state are used. Playwright and its browser binaries are development tools, not application dependencies or release payloads.
-
-GitHub CI uses the existing disposable pinned Playwright container path, with fixture compilation isolated from the browser runtime. The initial bare Ubuntu/Nix job passed Chromium/Firefox but failed on WebKit's first navigation; that path is not release evidence. For local hosts without browser libraries, use the same container instead of changing host packages:
-
-```sh
-npm ci --ignore-scripts
-nix develop -c env CGO_ENABLED=0 go test -c -o /tmp/file-share-browser-fixture .
-docker run --name file-share-browser-check --network none --cap-drop ALL \
-  --security-opt no-new-privileges --user "$(id -u):$(id -g)" \
-  --mount type=bind,src="$PWD",dst=/work,readonly \
-  --mount type=bind,src=/tmp/file-share-browser-fixture,dst=/fixture,readonly \
-  -e BROWSER_FIXTURE_BINARY=/fixture -w /work \
-  mcr.microsoft.com/playwright:v1.61.1-noble@sha256:5b8f294aff9041b7191c34a4bab3ac270157a28774d4b0660e9743297b697e48 \
-  node tests/browser_smoke.cjs
-```
-
-The stopped container retains screenshots; copy the printed directory with `docker cp`. Choose a new container name for another run. No automatic removal, privileged mode, daemon socket, host networking or public ports are needed.
-
-Run the pinned [vulnerability scan](../CONTRIBUTING.md#pinned-vulnerability-scan); unavailable scanner/database or unresolved reachable vulnerabilities block release. Run the [operator rehearsal](../CONTRIBUTING.md#operator-rehearsal) with the candidate binary. Installation changes also need their documented systemd/NixOS rehearsals. The CI matrix requests native amd64 and arm64 Go tests/builds; only executed jobs count as architecture evidence. Host NixOS VM checks run on amd64; ARM VM execution is separate.
-
-## Build local artifacts
-
-Commit reviewed source first. The packager refuses tracked changes and existing output paths. Use an archive-capable Buildx builder: the default Docker driver with a classic image store cannot export archive files. Select an existing approved builder with `BUILDX_BUILDER`; do not change host Docker storage settings to make the check pass. Creating a `docker-container` builder starts a privileged BuildKit container and cache volume and requires explicit local approval. After approval, `docker buildx create --name file-share-release --driver docker-container` creates one without switching the global default. Retain it until cleanup is separately approved. Untracked files are excluded by `git archive HEAD`, so local secrets and unrelated review artifacts cannot enter the build. Use a new output directory outside the checkout:
-
-```sh
-BUILDX_BUILDER=file-share-release nix develop -c python3 scripts/release.py v0.1.0-rc.1 /tmp/file-share-v0.1.0-rc.1
-python3 tests/release_artifacts.py /tmp/file-share-v0.1.0-rc.1
-cd /tmp/file-share-v0.1.0-rc.1
+BUILDX_BUILDER=your-existing-builder nix develop -c python3 scripts/release.py v1.0.4 /tmp/file-share-v1.0.4
+python3 tests/release_artifacts.py /tmp/file-share-v1.0.4
+cd /tmp/file-share-v1.0.4
 sha256sum -c SHA256SUMS
 ```
 
-For each of Linux amd64 and arm64 this writes a `.tar.gz` archive and `.docker.tar` image archive (Docker save format). Images are built from the same static binary in the matching archive; no foreign executable runs during image assembly. Buildx must support Docker archive export; the named `docker-container` builder does. No image is loaded, pushed or tagged in a registry. Archives include binary, notices, install/operations guides and release notes. Images contain binary and notices, non-root UID/GID `999:993`, and `/file-share` entrypoint. Build workspace and partial output remain on failure; no `SHA256SUMS` is written until all builds succeed. Fix failures and use a new output path, rather than treating partial output as a candidate.
+Choose a new output directory. An existing approved `docker-container` builder can export the Docker archives; creating one starts privileged BuildKit infrastructure and requires separate approval. Do not change host Docker storage settings to make packaging pass.
 
-`build.json` records explicit version, commit, compiler and target platforms. `runtime_verified` deliberately starts empty: successful cross-compilation is not runtime evidence. Plain source/Nix/Compose builds report `dev (unknown)` unless linker metadata is explicitly set. Version names do not create Git tags or promise reproducible byte-identical archives.
+Outputs include Linux amd64/arm64 binary and Docker archives, complete notices, guides, `build.json`, and checksums. Image payloads contain the binary and notices, run as UID:GID `999:993`, and use `/file-share` as entrypoint. No image is loaded or published. `runtime_verified` starts empty: cross-compilation alone is not native-runtime verification. Partial output remains on failure, without final checksums.
 
-## Release gate (human review required)
+## Publish
 
-Before any separately authorized publication:
+An approved version tag on `main` triggers `.github/workflows/release.yml`. After all checks pass, independent jobs publish to:
 
-1. Bind every result to the candidate commit/version. Verify archive checksums, embedded `-version`, ELF machine type and image config/payload/notices for both architectures.
-2. Run binaries on native amd64 and arm64 hosts with openat2; run Go contracts and install/operations checks there. Cross-build, ELF inspection or emulation alone cannot mark native runtime verified.
-3. Require passing Go race/vet/contracts, Python contracts, Nix checks, all six browser runs, and fresh vulnerability scan. Review results rather than presence of a workflow file.
-4. Confirm MIT provenance attestation and exact Go/module notice inventory remain current; include all notices. Review release notes for known limits and upgrade/rollback behavior. Rehearse old/new versions if claiming compatibility.
-5. Record pending public-ingress/install/security work. Packaging success does not authorize public exposure or close separate readiness blockers.
-6. Obtain approval for the concrete source/tag, destination and publication operation. A version-tag push triggers automatic gated GHCR and Docker Hub publication; its approval must include those effects. Selecting a registry is not authority for arbitrary future pushes. Inspect the executed run and anonymous registry outcome; a workflow file or green build alone is not proof of publication.
+- `ghcr.io/xmoforf/go-fileshare`, using the job's ephemeral `GITHUB_TOKEN`.
+- `docker.io/xmoforf/go-fileshare`, using repository secret `DOCKERHUB_TOKEN` for username `xmoforf`.
 
-No automated command turns local candidate builds into release approval. Keep evidence alongside the candidate; do not edit generated metadata to imply checks ran.
+Only the GHCR job receives `packages: write`. Build/test jobs receive no registry credentials. Releases are serialized; submit one version at a time because queued GitHub concurrency runs may replace one another. Workflows do not create Git tags, GitHub Releases, or deployments.
+
+### Release tags
+
+For version `v1.0.3`:
+
+| Image tag | Meaning |
+|---|---|
+| `1.0.3` | Exact multi-platform Linux amd64/arm64 image |
+| `1.0.3-amd64`, `1.0.3-arm64` | Exact platform images |
+| `1.0` | Highest stable patch in the 1.0 line |
+| `1` | Highest stable version in major version 1 |
+| `latest` | Highest stable version |
+
+Prereleases receive only exact version/platform tags. Older maintenance releases do not downgrade newer aliases. Docker tags omit the Git `v`; embedded version metadata retains it. Exact tags are protected by publisher policy, not registry immutability; deployments can pin a digest.
+
+For example, use `docker buildx imagetools inspect ghcr.io/xmoforf/go-fileshare:1.0.3` to inspect its platforms and index digest, then pin `ghcr.io/xmoforf/go-fileshare@sha256:...` in Compose. The same version is available from Docker Hub. Check the chosen registry rather than relying on a copied digest table.
+
+## Verify publication
+
+Inspect both publication jobs and reports. Confirm version/source labels, platform manifests, index/config digests, and an anonymous digest pull with the expected `-version`. Initial GHCR visibility can require a separately approved change; do not advertise public availability until anonymous access works.
+
+Retain the commit/tag, native test results, and `publication-report-ghcr.io` / `publication-report-docker.io` artifacts outside expiring CI storage. Image archives expire after seven days; publication reports expire after 90 days. Record native ARM execution separately from emulation or cross-build evidence.
+
+## Handle partial publication
+
+Publication is not transactional across registries. One registry can succeed while the other fails; no automatic rollback occurs. Preflight rejects existing exact/platform tags and fails closed on malformed inventories, network errors, or authentication errors.
+
+Before retrying, inspect both reports and registry digests. A rerun encountering partial tags stops rather than overwriting them. Obtain separate approval for a specific recovery operation; do not delete or overwrite tags to force a rerun through. Restrict other registry writers so they cannot bypass publication policy.

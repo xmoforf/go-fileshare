@@ -1,43 +1,104 @@
-# Compose with Caddy
+# Install with Docker Compose
 
-Standalone Linux reference for Docker Engine and Compose V2 or newer. Requires Linux 5.6+ and working `openat2` inside containers; keep default seccomp enabled. Docker access is host-level privilege. No existing installation, network, credentials or state is imported.
+Run the published application image behind Caddy. This example uses the common shared-proxy layout: Caddy joins `proxy`; file-share joins `proxy` and `fileserver`. Other applications can join `proxy` and receive their own Caddy routes.
 
-## Prepare
+## Requirements
 
-From this repository at a reviewed commit:
+- Linux 5.6+ with working `openat2`, Docker Engine, and Docker Compose V2 or newer.
+- A hostname pointing to the host, with ports 80 and 443 available for Caddy.
+- A directory of files to serve.
 
-```sh
-cp compose.env.example .env
-install -d -m 700 config state caddy-data caddy-config
-cp auth.example.json config/auth.json
-chmod 600 config/auth.json
+The image supports Linux amd64 and arm64. This guide uses the published `1.0.3` image; select a release deliberately when updating.
+
+## Install
+
+Create a new deployment directory. Save the following as `compose.yaml` there; this is a standalone example, not the source-building stack at the repository root.
+
+```yaml
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    stop_grace_period: 40s
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [proxy]
+
+  fileshare:
+    image: ghcr.io/xmoforf/go-fileshare:1.0.3
+    user: "1000:1000"
+    command: ["-origin", "https://files.example.com"]
+    restart: unless-stopped
+    stop_grace_period: 40s
+    healthcheck:
+      test: ["CMD", "/file-share", "-healthcheck"]
+      interval: 5s
+      timeout: 4s
+      retries: 6
+      start_period: 5s
+    volumes:
+      - /srv/shared-files:/data:ro
+      - ./config/auth.json:/config/auth.json:ro
+      - ./state:/state
+    networks: [proxy, fileserver]
+
+networks:
+  proxy:
+    name: proxy
+  fileserver:
+
+volumes:
+  caddy_data:
+  caddy_config:
 ```
 
-Edit `.env`: all mount paths must be absolute and already exist. Set `FILE_SHARE_DATA` to a separate served directory, never a parent of config/state/certificate storage. Set `FILE_SHARE_UID` and `FILE_SHARE_GID` to a non-root host identity; `id -u` / `id -g` show your current identity. The sample uses 1000:1000; absent overrides, the image/Compose default is 999:993. Do not assume either identity is free or suitable on your host. Both containers use the selected identity. For a dedicated service account, provision ownership through your host's administration process.
+Only Caddy publishes host ports. `fileserver` is project-scoped; `proxy` has a stable name so other stacks can join it. In those stacks declare `proxy` with `external: true`. If a shared `proxy` network already exists, use `external: true` here too instead of having this project manage it. Services on `proxy` can communicate directly.
 
-`999:993` is a packaging default, not a required Linux account: it is set in `Dockerfile`, `dist/Dockerfile.release` and the Compose fallback. No reason for those specific numbers is documented in the available source/provenance. Keep the fallback for existing installations; there is no universally portable numeric UID/GID. For a new installation, explicitly select a suitable host identity in `.env` rather than relying on either sample or fallback numbers. Changing IDs on an existing installation requires a stopped, backed-up permission migration of its private mounts; changing `.env` alone does not change file ownership.
+The same application image is available from `docker.io/xmoforf/go-fileshare:1.0.3`. For an immutable deployment, replace the version tag with a verified registry digest. See [release tags](releases.md#release-tags).
 
-That identity needs directory search/read permission on served content, read permission on `auth.json` (mode 600), and ownership/write access to state, caddy-data and caddy-config (mode 700). No privileged init container or automatic recursive chown runs. Missing mount sources fail rather than creating root-owned directories. Rootless Docker/user-namespace mappings and SELinux hosts need host-specific permission/label setup; do not disable confinement to bypass failures.
+## Configure
 
-Set both `FILE_SHARE_SITE` and `FILE_SHARE_ORIGIN` to `https://files.example.com`, replacing the domain. Origin must exactly match the browser URL, without a trailing slash. With a nonstandard external HTTPS port, include that port in **origin only**; Caddy still listens on container port 443. Set `FILE_SHARE_HTTPS_PORT` to the host port. Site is the HTTPS hostname without that mapped port.
+Replace `/srv/shared-files`, `1000:1000`, and `files.example.com` with your content path, host UID/GID, and hostname. `id -u` and `id -g` show your current identity. The selected identity needs read/search access to content, read access to credentials, and write access to state.
 
-Build locally, then generate a bcrypt hash:
+Create the directories as that identity:
 
 ```sh
-docker compose config --quiet
-docker compose build fileshare
+install -d -m 700 config state
+```
+
+Save this as `config/auth.json` and set mode 600:
+
+```json
+{
+  "username": "owner",
+  "password_hash": "REPLACE_WITH_BCRYPT_HASH"
+}
+```
+
+```sh
+chmod 600 config/auth.json
+docker compose pull
 docker compose run --rm --no-deps -T fileshare -hash-password
 ```
 
-Provide the password on stdin from a trusted, non-logging terminal/input source; end with EOF. Input may echo. Put the resulting hash and chosen username into `config/auth.json`; never put the password/hash in shell arguments, `.env`, logs or source control. The shipped placeholder cannot authenticate. The build context excludes local credentials and state.
+Supply the password on stdin, finish with EOF, and replace the placeholder with the generated hash. Input may echo; see [password input rules](configuration.md#owner-account). Choose your username in the same file.
 
-## Ingress and start
+Save this as `Caddyfile`, using the same hostname as `-origin`:
 
-**Default published ports bind only to 127.0.0.1.** Application HTTP port 8080 is never published. Only this project's private Docker network connects Caddy to the app; do not attach unrelated containers. Caddy runs non-root, drops capabilities except `NET_BIND_SERVICE` (needed by its official binary and ports 80/443), and cannot write its root filesystem. The app drops all capabilities. Only explicit state mounts are writable.
+```caddyfile
+files.example.com {
+    reverse_proxy fileshare:8080
+}
+```
 
-For public certificates, public DNS must resolve the site to the intended ingress and ACME challenges must reach Caddy on public port 80 or 443. A loopback-only installation cannot obtain these certificates without upstream forwarding. Do not open ports merely to make startup pass. Configure trusted ingress/VPN/firewall routing deliberately; public exposure is a separate operator action.
+Caddy obtains and renews its HTTPS certificate and stores certificate data in `caddy_data`. Further applications use additional hostname blocks and their service names. For other application settings, see [configuration](configuration.md).
 
-Stock Caddy provides HTTPS and streaming proxying, **not all public-ingress protections** required by [SECURITY.md](../SECURITY.md). Before changing `FILE_SHARE_BIND` to an externally reachable address, provide aggregate active-request/connection limits (including HTTP/2 streams), bounded queueing, per-client abuse/login controls and stalled-reader progress limits at an outer ingress. A connection cap does not bound multiplexed requests. This reference intentionally does not claim to be a complete public DDoS/availability boundary. CPU/memory/PID/file-descriptor limits are containment, not admission control or capacity guarantees; qualify them for your workload.
+## Start and verify
 
 ```sh
 docker compose config --quiet
@@ -45,92 +106,12 @@ docker compose up -d --wait
 docker compose ps
 ```
 
-`--wait` checks app readiness, not certificate issuance or browser readiness. Verify HTTPS at your exact origin with a trusted certificate, log in, create a synthetic share, open it anonymously, and revoke it before serving real data. Caddy disables HTTP/3 here (TCP 80/443 only). Access logging is not enabled; runtime/proxy error logs can still contain sensitive URLs. Restrict log access. Docker's `local` log driver rotates logs.
+Open `https://files.example.com`, log in, and [create a share](usage.md#share-files-and-folders). Open the link without the owner session, then revoke it. Container health alone does not check certificate issuance or browser access.
 
-Caddy is pinned by version and digest; refresh deliberately after security updates. The application image is built from the current checkout. For upgrades, record the old image ID and source commit, build/test a distinct local tag via `FILE_SHARE_IMAGE`, and retain the prior image plus a consistent state backup. Do not treat the mutable `:local` tag as rollback history.
+## Next steps
 
-## Caddy rate-limit example
+- [Operations](operations.md) — stop, restart, update, back up, and restore.
+- [Security](../SECURITY.md#deployment-hardening) — ingress limits and hardening.
+- [Source build](source.md) — build the application yourself instead of using a published image.
 
-Public ingress protection belongs in the reverse proxy, not the Go application. For request-rate controls, build Caddy with [`mholt/caddy-ratelimit`](https://github.com/mholt/caddy-ratelimit). This example adapts an operator-tested Caddy build pattern; it is not a new load-test result for this project. The module is third-party, not part of stock Caddy; its v0.1.0 README labels it work in progress.
-
-Save this as `Dockerfile.caddy` beside `compose.yaml`:
-
-```dockerfile
-FROM public.ecr.aws/docker/library/caddy:2.11.7-builder-alpine@sha256:d718a1d1431403c4a46698f33ad1c0f9dd5dd7fe2bae654d1027d275b6fb5fd7 AS builder
-RUN xcaddy build v2.11.7 \
-    --with github.com/mholt/caddy-ratelimit@v0.1.0
-
-FROM public.ecr.aws/docker/library/caddy:2.11.7-alpine@sha256:24ec7b05bc532c7bb57f727030c5056e257ff7138b4b50460306819ff79362bd
-COPY --from=builder /usr/bin/caddy /usr/bin/caddy
-```
-
-Save this as `compose.ratelimit.yaml`. The override retains the base service's non-root identity, read-only filesystem, private upstream and loopback-only published ports:
-
-```yaml
-services:
-  caddy:
-    image: go-fileshare-caddy:2.11.7-ratelimit-0.1.0
-    build:
-      context: .
-      dockerfile: Dockerfile.caddy
-```
-
-Keep the global block in `Caddyfile`; replace its site block with:
-
-```caddyfile
-{$FILE_SHARE_SITE} {
-    {$FILE_SHARE_TLS}
-    route {
-        rate_limit {
-            zone public_standard {
-                key {remote_host}
-                events 100
-                window 4s
-            }
-        }
-        @login path /api/login
-        rate_limit @login {
-            zone login_limit {
-                key {remote_host}
-                events 5
-                window 1m
-            }
-        }
-        reverse_proxy fileshare:8080
-    }
-}
-```
-
-The ordered `route` applies both sliding-window limits before proxying login requests. Each directly connected client IP gets 100 requests per four seconds across all paths and five login requests per minute. Excess requests receive 429 with Retry-After. These are starting values, not measured capacity; shared NAT clients share a budget. Range requests each consume an event. The app's separate global login budget still applies, so multiple clients can exhaust it; retain a private owner recovery path.
-
-`{remote_host}` uses the socket peer, not an untrusted forwarded header. If another proxy sits in front, all its clients share that peer's limit. Configure narrowly trusted proxy addresses and verified client-IP handling before changing the key; never trust arbitrary incoming forwarded headers. Avoid logging keys or bearer URLs.
-
-Build and validate in a one-off container without starting the serving stack:
-
-```sh
-docker compose -f compose.yaml -f compose.ratelimit.yaml config --quiet
-docker compose -f compose.yaml -f compose.ratelimit.yaml build caddy
-docker compose -f compose.yaml -f compose.ratelimit.yaml run --rm --no-deps -T caddy \
-  caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
-```
-
-Use both `-f` arguments for subsequent Compose operations. Starting or replacing a deployment remains an explicit operator action. Keep the previous image/config for rollback. Refresh the Caddy image digests and module version deliberately, then validate again.
-
-**Rate is not concurrency.** These limits count request arrivals, not active downloads, connections or HTTP/2 streams. Per-IP limiter state also grows with distinct clients. This example does not establish bounded queueing, reserved owner capacity or a response write-idle policy. Keep the [remaining ingress requirements](../SECURITY.md#public-ingress-requirements); do not substitute a short total response timeout that interrupts progressing downloads. Before public exposure, verify those controls and overload, stalled readers, long downloads, Range/HEAD and disconnect propagation on the actual ingress.
-
-## State and shutdown
-
-```sh
-docker compose stop fileshare   # drain active app requests up to 30 seconds
-docker compose stop caddy
-```
-
-Stop allowances are 40 seconds, above the app's 30-second drain deadline. Stop the app first when deliberately draining downloads through the proxy. Long remaining transfers can be interrupted at the deadline. Restart logs out owner sessions but preserves shares and revocations in SQLite. `docker compose up -d --wait` starts the same persistent mounts again.
-
-Back up the entire state directory while the app is stopped, preserving permissions; never copy only a live SQLite database. Keep backups outside the served tree. Caddy data holds private certificate keys; protect it like credentials. Do not delete state or Caddy data to fix a startup failure. Restoring old state can resurrect revoked shares. Password rotation requires replacing the auth contents and restarting/recreating the app; if atomically replacing the bind-mounted file, recreate the container so it sees the new inode.
-
-For step-by-step [credential rotation, stopped backup, restricted restore and upgrades](operations.md), use the host mount paths from this project's env file. Restores must reapply revocations before reopening ingress; recreate the app after replacing mounted state directories or auth files. Follow the [owner/recipient walkthrough](usage.md) for first-use verification.
-
-## Other reverse proxies
-
-Keep the raw HTTP listener private. Terminate trusted HTTPS for exactly the configured origin; preserve Host, Origin, cookies and the `X-Requested-With` header. Forward all paths/query strings without rewriting bearer tokens, and preserve Range/HEAD/conditional requests. Do not cache authenticated responses or bearer content; retain no-store/no-referrer headers. Stream without full-response buffering; propagate client disconnects upstream. Use a write-idle/progress policy, not a short total-response timeout that cuts off healthy long downloads. The app ignores forwarded client-IP headers: enforce per-client limits at trusted ingress rather than expecting the app to do so. Avoid logging bearer paths/query strings. Verify these contracts against your chosen proxy; support is not implied by a successful health probe.
+The repository-root Compose stack is a separate source-build reference. It uses `compose.env.example`, `FILE_SHARE_*` mount/identity/origin variables, loopback-bound Caddy ports, and explicit resource controls. Do not mix its environment-file instructions with this standalone example.

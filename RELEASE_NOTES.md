@@ -1,30 +1,59 @@
 # Release notes
 
-## v1.0.1 — release-tooling patch
+## Unreleased
 
-Prepared for release; publication is not confirmed until the tag-triggered workflow and anonymous registry checks succeed.
+### Changes
 
-- Reject malformed registry tag inventories before any publication write, preserving existing-version overwrite protection.
+- Reorganize documentation into installation, configuration, usage, operations, testing, and release guides.
+- Add a minimal published-image Compose example using shared Caddy proxy networking.
+- Show the browser interface and sharing workflow in README media.
+
+## v1.0.3
+
+### Changes
+
+- Fix release verification for Docker manifest image identities.
+
+### Upgrade
+
+No application or state-format changes from v1.0.2. Matching Linux amd64/arm64 images are available from GHCR and Docker Hub.
+
+## v1.0.2
+
+### Changes
+
+- Make the file browser more compact and reset copy feedback when opening a new share dialog.
+- Show an error for invalid filename-filter regular expressions.
+- Separate routine CI from full release checks and isolate registry publication permissions.
+
+### Upgrade
+
+No database migration is added. Reload the browser after updating to use the new interface.
+
+## v1.0.1
+
+### Changes
+
 - Publish the same native-tested amd64/arm64 images to GHCR and Docker Hub through separate gated jobs.
-- Reuse native image HTTPS/persistence, operations and vulnerability checks in branch/PR CI as well as releases.
+- Reject malformed registry tag inventories before publication.
 
-Application source, dependencies, container payload layout and state/API formats are unchanged from v1.0.0; no migration is added. Release binaries carry the new version/source metadata. This tooling patch does not add cross-version backup/restore evidence or change the upgrade/security limits below. Publication can succeed in one registry and fail in the other; inspect both reports before retrying, and never overwrite exact or partial release tags.
+### Upgrade
+
+This release-tooling patch does not change application state or API formats. Release binaries carry updated version/source metadata; no database migration is added.
 
 ## v1.0.0
 
-Initial stable container release of the existing application behavior, with matching version/source metadata and native Linux amd64/arm64 verification gates. Publication is established by a successful [Container release run](https://github.com/xmoforf/go-fileshare/actions/workflows/release.yml) and verified registry digests, not by this document. GHCR and Docker Hub now serve identical v1.0.0 images; the [Docker Hub mirror](docs/releases.md#docker-hub-mirror) reused the native-tested release without rebuilding. Future Git tags trigger CI publication to both registries; the separate local packager remains local-only.
+### Changes
 
-- Single-owner Linux file browser and read-only bearer file/folder links; no uploads, transcoding or multi-user permissions.
-- Compose/Caddy, binary/systemd, Go-source and Nix/NixOS installation references.
-- Keyboard-accessible continuous listing, expiring/revocable links, bounded login/session state, Linux openat2 confinement and graceful shutdown.
-- MIT project license; required dependency notices accompany archives and scratch images.
+- Single-owner Linux file browser with read-only file/folder links, expiry, and revocation.
+- Keyboard navigation, filtering, sorting, and HTTP range downloads.
+- Container images for Linux amd64 and arm64, available from GHCR and Docker Hub.
+- Source, systemd, Compose, and Nix/NixOS installation options.
 
-## Upgrade and security
+### Upgrade
 
-Back up the entire stopped state directory before replacing binaries. Restoring an old database can resurrect revoked links and discard newer shares; reconcile/re-revoke before reopening ingress. See [operations](docs/operations.md). Code replacement of the same revision does not establish cross-version database compatibility.
+Back up the whole stopped state directory before replacing the application. Compatibility with every pre-release database is not guaranteed; rehearse upgrades against a copy of state. Restoring an older database restores its share permissions, including links revoked since that backup. Follow [operations](docs/operations.md#update-and-roll-back) for updates and recovery.
 
-Require Linux 5.6+ with openat2, trusted HTTPS and separately configured public-ingress controls. There is no global transfer cap or response write-idle deadline in the app. See [SECURITY.md](SECURITY.md). The v1.0.0 designation does not establish compatibility with every pre-stable database or promise automatic migrations. Future releases must describe state/API compatibility and migration/rollback limits here; never assume a stopped backup is safe to restore without reconciling revoked links.
+### Known limitations
 
-## Evidence required per candidate
-
-Use [release gates](docs/releases.md). Cross-built amd64/arm64 artifacts are not native runtime proof. Record actual architecture, compiler, browser versions, scanner/database freshness, install/operations results and exclusions against the exact candidate commit. GitHub workflow configuration is not an executed CI result. No codecs, real mobile devices or screen readers are certified by the browser smoke matrix.
+No uploads, transcoding, or multi-user permissions. HTTPS terminates at a reverse proxy. See [application limits](SECURITY.md#application-limits) for resource and security boundaries.

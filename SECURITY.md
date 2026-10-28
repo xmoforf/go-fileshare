@@ -1,64 +1,52 @@
-# Security and resource boundaries
+# Security
 
-## Threat model
+## Report a vulnerability
 
-This is a single-owner, read-only file browser, not a multi-tenant storage service. Protect file confidentiality, owner credentials/sessions, share tokens and revocation state. Treat unauthenticated internet clients and bearer-link recipients as untrusted. The host administrator, reverse proxy, owner and anyone able to write or mount content beneath the served tree are trusted.
+Ask the repository owner for a private reporting channel before sending sensitive details; this repository does not document a dedicated security contact. Include the affected version/commit, impact, and a reproduction using synthetic data. Do not include credentials, real share links, or databases in public reports.
 
-- **Filesystem:** Linux `openat2` confines opens beneath the configured root/share anchor and rejects symlinks in every component. Only regular files and directories are exposed. Hard links, mount points and content replacements made by trusted writers are not an isolation boundary. Run unprivileged with read-only file/credential mounts and a separate writable state directory. Never put state, credentials or backups beneath the served root.
-- **Owner:** bcrypt verifies the configured password. Cookies are Secure, HttpOnly, SameSite=Strict and host-only. State-changing requests require the exact configured HTTPS Origin and `X-Requested-With: file-share`. These checks prevent cross-origin browser writes, not scripted login attempts. The app does not trust forwarded client-IP headers.
-- **Recipients:** links contain random 256-bit bearer tokens. Anyone with a token can read and forward its scope. Folder shares include future descendants and replacements. Expiry and revocation are checked on new requests, including HEAD/ranges; in-flight transfers may finish. Downloaded copies cannot be revoked.
-- **Content:** active/unknown content downloads as attachments; file responses carry a sandbox CSP and `nosniff`. The browser uses local embedded assets. This is not malware scanning or codec validation.
-- **Persistence:** SQLite contains bearer tokens. Restrict state/backups like credentials. Restoring old state can reactivate revoked links. Password changes/restarts invalidate memory-only sessions, not shares. Revoke unwanted shares separately. Follow the [restricted restore procedure](docs/operations.md#restore-without-surprising-recipients); if revocation history is incomplete, revoke all restored shares before reopening ingress.
-- **Transport/logs:** terminate HTTPS at a trusted reverse proxy; prevent direct public access to the HTTP listener. Proxies, browser history and copied URLs can expose tokens. Avoid logging share URLs/query strings; restrict log access. Response no-store/no-referrer headers do not erase copies already made elsewhere.
+No response-time SLA or supported maintenance-branch policy is published. Maintainers should reproduce privately, add a regression test, verify the fix, and publish upgrade guidance.
 
-## Password hashing
+## Security model
 
-Keep bcrypt for existing owner credentials. The CLI generates cost-12 hashes with a random salt; `newApp` validates the configured bcrypt cost and login uses `bcrypt.CompareHashAndPassword`. The stored string carries its algorithm version, salt and cost. The CLI accepts 12–72 bytes and rejects longer input rather than silently truncating it. Higher-cost imported hashes increase login work; the global rate limit does not make that work cancelable.
+File-share is a single-owner, read-only service. The host administrator, owner, reverse proxy, and writers to the served tree are trusted. Recipients and unauthenticated clients are not.
 
-Go's standard-library `crypto/pbkdf2` is a viable password-derived-key primitive, not a drop-in bcrypt verifier. A PBKDF2 password format would need an algorithm/version tag, random salt, calibrated iteration count, key length, bounded parameter parsing and constant-time verification. Neither algorithm is memory-hard; switching solely to remove an import is not a demonstrated security improvement. No FIPS compliance requirement or claim is established here.
+| Boundary | Behavior |
+|---|---|
+| Filesystem | Linux `openat2` confines access beneath the root/share anchor and rejects symlinks. Only regular files and directories are served. Trusted writers can still replace content or add hard links and mounts. |
+| Owner | Bcrypt password verification; Secure, HttpOnly, SameSite=Strict, host-only cookies. Browser writes require the exact HTTPS Origin and `X-Requested-With: file-share`. |
+| Recipients | Random 256-bit bearer links grant access to a file or live folder subtree. Anyone with a link can forward it. Expiry/revocation applies to new requests, not downloaded copies or transfers already underway. |
+| Content | Active/unknown content downloads as attachments. File responses use sandbox CSP and `nosniff`; responses use no-store/no-referrer. No malware scanning or transcoding is provided. |
+| State | SQLite stores share tokens and permissions. Restarting or changing credentials clears owner sessions, not shares. Restoring older state can restore revoked links. |
 
-Existing bcrypt hashes cannot be converted to PBKDF2 without the password. A migration would require explicit credential regeneration or dual-format verification followed by rehashing on login. The server currently reads a read-only auth file and does not rewrite credentials, so automatic migration would also change its permissions and recovery model. Retain bcrypt and the current format; do not replace password hashing as a documentation cleanup. This decision is separate from the SQLite transitive-dependency audit in `go-fileshare-1r4`.
+The CLI generates cost-12 bcrypt hashes from passwords of 12–72 bytes. Imported higher-cost hashes increase login work; bcrypt is not cancelable once verification starts. Credentials are read at startup and are not rewritten automatically.
 
-## Enforced bounds and remaining limits
+## Deployment hardening
 
-| Boundary | App behavior | Remaining requirement |
+- Keep the HTTP listener behind trusted HTTPS ingress. The app does not terminate TLS or trust forwarded client-IP headers.
+- Use an unprivileged runtime identity, read-only content/configuration, and private writable state. Keep credentials, state, and backups outside the served root.
+- Set aggregate active-request and connection budgets at ingress, accounting for HTTP/2 streams, bounded queues, and per-client abuse/login controls. A connection cap alone does not bound multiplexed requests.
+- Use response write-idle/progress limits for stalled readers rather than a short total-response timeout that cuts off progressing downloads. Propagate client disconnects upstream.
+- Size OS/container CPU, memory, PID, and descriptor limits for the workload. Measure storage latency, listing size, active transfers, and control-route responsiveness before choosing limits.
+- Restrict or redact proxy logs containing share URLs; no-store/no-referrer does not erase URLs already copied or logged.
+
+The [basic Compose example](docs/compose.md) provides HTTPS routing, not a complete availability boundary. See [proxy hardening](docs/hardening.md) for proxy requirements and an optional Caddy request-rate recipe. Follow [restricted restore](docs/operations.md#restore) when recovering state.
+
+## Application limits
+
+| Area | Enforced behavior | Deployment consideration |
 |---|---|---|
-| Login | 10 requests per global one-minute window; malformed attempts also consume budget after Origin checks. Rejected requests return 429 with Retry-After: 60. | Not a rolling rate or per-IP limit: up to 20 admitted attempts can straddle a window boundary. Abuse can deny the owner login. Protect `/api/login` with a VPN/allowlist or trusted ingress rate limits; retain a private recovery path. Existing sessions continue working. |
-| Password work | CLI generates cost-12 bcrypt; work is outside the session mutex. | Up to 10 attempts can run together per window. Bcrypt is not cancelable once started. A trusted operator can configure a higher-cost hash; measure its cost before use. |
-| Sessions | At most 32; 12-hour expiry; cleanup on successful login and expired-cookie use. | Sessions consume a bounded map, not durable login state. |
-| Request input | JSON bodies limited to 8,192 bytes; unknown fields and trailing JSON rejected. HTTP header setting 16 KiB (Go parsing overhead may allow additional bytes); header/read/keep-alive idle timeouts 10/30/120 seconds. | These are not connection limits or response-write deadlines. Ingress must also bound connections and requests. |
-| Directory listings | No entry-count cap. Read at most 256 directory entries per batch; stat/encode incrementally into the existing JSON array. Check cancellation between entries/batches; stop on write errors. | Total filesystem work and bytes still scale with directory size. A blocked filesystem syscall cannot be canceled by Go context. Use reliable local storage; qualify network/FUSE mounts separately. |
-| Listing clients | UI mounts visible rows plus a small buffer and retained focus row; filtering/sorting covers the complete directory. | Browser downloads/parses/retains the full array. Browser heap and sorting cost scale with entries. Streaming is not server-side pagination or a directory snapshot. Concurrent changes may omit/change entries. |
-| Listing failures | Initial open/read failures return 404. A later read failure aborts the HTTP stream; cancellation/write failure does not finish the JSON array. | Clients must consume and parse the complete response before accepting a listing. Never treat an incomplete array as successful partial results. |
-| Downloads | `http.ServeContent` streams regular files with HEAD, conditional and range support. Disconnects release handlers/files. No full-file buffering or total-duration write timeout. | A connected non-reading client can retain a handler, socket and file indefinitely during normal operation. There is no app-wide transfer/request cap. |
-| SQL | One connection, context-aware query/pool waits, SQLite busy timeout 5 seconds. Session locks are not held during SQL or streaming. | Queued requests still consume resources; cancellation depends on caller/proxy disconnect. Slow storage can affect health and share authorization. |
-| Shares | Owner-only creation/revocation; database persists shares. | No automatic expiry-row purge or share-count cap. Owner Shares view materializes all stored rows. Monitor state size; revoke/delete unwanted rows through the API rather than editing tokens in live state. |
-| Shutdown | Stop accepting requests, drain up to 30 seconds, then close remaining connections. | Transfers longer than remaining grace are interrupted; service-manager stop allowance must exceed 30 seconds. |
+| Login | 10 admitted attempts per global one-minute window after Origin checks; rejected attempts return 429 and Retry-After: 60 | Not per-client or rolling: up to 20 attempts can straddle a boundary. Protect owner access from shared-budget exhaustion. |
+| Sessions | Maximum 32; 12-hour lifetime; in memory | Restart invalidates every owner session. |
+| Input | JSON bodies limited to 8,192 bytes; unknown fields/trailing JSON rejected. HTTP header setting 16 KiB, plus Go parsing overhead. Header/read/keep-alive idle timeouts: 10/30/120 seconds | No app-wide request/connection cap or response write-idle deadline. |
+| Listings | Enumerate in batches of at most 256; stop between batches/entries on cancellation or write failure | No entry-count cap. Filesystem calls may block; full browser listing and sorting consume memory proportional to directory size. |
+| Listing errors | Initial open/read errors return 404; later errors abort the response | Clients must parse a complete JSON array before accepting a listing. Concurrent filesystem changes are not a snapshot. |
+| Downloads | Streaming GET/HEAD, conditional and range requests; disconnects release handlers/files | Stalled readers can retain resources indefinitely during normal operation. No global transfer cap. |
+| Database | One connection; context-aware pool/query waits; 5-second SQLite busy timeout | Queued requests still consume resources; slow storage can affect readiness and share access. |
+| Shares | Persistent records; owner-only creation/revocation | No automatic expired-row purge or share-count cap; Shares loads all records. Revoke unwanted entries through the UI/API. |
+| Shutdown | Up to 30 seconds to drain requests, then remaining connections close | Service-manager stop timeout must exceed 30 seconds. |
 
-### Public ingress requirements
+## Security updates
 
-**Do not expose the raw listener to untrusted internet traffic.** The app does not provide DDoS resistance. Ingress protection is the reverse proxy/operator's responsibility. The [Caddy rate-limit example](docs/compose.md#caddy-rate-limit-example) provides per-client request-rate configuration across all paths and for login, not proof of concurrency or stalled-reader bounds. Before public exposure:
+Review Go, dependency, base-image, proxy, and host advisories regularly. Before releases, run the [source and binary vulnerability checks](docs/testing.md#resource-and-vulnerability-checks), record scanner/database dates, and assess reachable-code findings separately from module-only findings. A failed or unavailable scan is unverified, not clean.
 
-1. Configure finite aggregate active-request and connection budgets, including HTTP/2 streams, bounded queueing and per-client abuse controls at ingress. A connection cap alone does not bound multiplexed requests. Ensure canceled downstream requests cancel upstream work.
-2. Use a response **write-idle/progress** policy for stalled readers that permits continuously progressing long transfers. Do not substitute a short total response timeout. Verify your actual proxy behavior with slow readers, ranges and a long transfer; deployment examples are separate work.
-3. Bound service memory, CPU and file descriptors at the OS/service layer with headroom for control requests and storage. Memory pressure kills may interrupt transfers; resource ceilings are containment, not availability guarantees. Account for sockets, open root/share/file descriptors, kernel buffers, TLS/proxy buffers and concurrent listings.
-4. Measure the intended combination of directory sizes, filename lengths, active clients and storage latency on the target host. Monitor RSS, descriptors, CPU, queueing and control-route latency; lower ingress budgets if the tested envelope is exceeded.
-
-### Measured envelope, not universal capacity
-
-Synthetic Linux amd64 / Go 1.27.3 measurements on an Intel i9-14900, 2026-10-26:
-
-- Complete 50,000-entry owner and bearer listings pass. With 64-byte filenames, streaming allocates about 19 MB cumulatively per listing versus 74 MB before the change. This is **total allocated bytes, not peak heap or RSS**; retained enumeration is batch-sized and GC still manages transient allocations.
-- Eight simultaneous non-reading 64 MiB downloads stayed active during a 100 ms observation with about 0.9–1.0 MB additional live Go heap. Health/session/share-list requests completed within the test's 2-second deadline. All eight handlers and their file descriptors were released on disconnect. Kernel/proxy memory and prolonged load were not measured.
-- Cost-12 bcrypt took about 153 ms per verification in a three-iteration sample; concurrent login tests enforce 10 admitted attempts out of 40 and the 32-session ceiling. The functional burst uses minimum-cost test hashes, not a capacity test of ten simultaneous cost-12 hashes.
-- Desktop Chromium loaded a 50,000-entry synthetic directory (about 4.6 MB JSON) with 100 rendered rows; global filter and descending sort passed. One post-load `usedJSHeapSize` sample was about 14 MB and the listing resource transfer took 157 ms on loopback. This approximate browser API is not total browser memory, peak usage or end-to-end render latency.
-
-These independent probes are a reproducible starting point, **not** proof that eight clients, larger directories or this latency are safe on every deployment. No hard directory-size limit is imposed. Million-entry directories, low-memory devices, prolonged saturation, network filesystems, proxies, ARM and non-Chromium engines require their own qualification. See [CONTRIBUTING.md](CONTRIBUTING.md) for commands and `.pi/reviews/go-fileshare-19p.3/` for retained evidence.
-
-## Vulnerability maintenance and reporting
-
-This project is pre-stable; no supported maintenance branches or response-time SLA are promised. Check Go/toolchain and module advisories before each release and after relevant security announcements. Scan source with the pinned Nix `govulncheck`, retain scanner/database dates and full output, and rerun race/vet/build checks after updates. A failed or offline scan is **unverified**, not clean. Do not replace pinned dependencies or the toolchain silently.
-
-The 2026-10-26 scan using govulncheck 1.9.0 and vulnerability database updated 2026-10-21 reported no reachable-symbol or imported-package findings. It reported module-only [GO-2026-5932](https://pkg.go.dev/vuln/GO-2026-5932) for the unmaintained `golang.org/x/crypto/openpgp` package, which this application does not import; no fixed version is listed. The application uses `x/crypto/bcrypt`. Retain/reassess this distinction on updates rather than suppressing all module findings. Scanning is not a proof of security and does not assess the Linux kernel, reverse proxy or host configuration.
-
-No private security-reporting channel is published yet. Before publication, the owner must publish a private security contact or enable the hosting platform's private vulnerability reporting. Until then, ask the repository owner for a private channel; do not post credentials, real bearer URLs, databases or sensitive exploit details publicly. Include affected commit/version, synthetic reproduction, expected/actual behavior and impact. Maintainers should reproduce privately, assess reachability, patch with a regression test, rerun scans/gates and publish upgrade guidance when a fix is available.
+Go vulnerability scans do not cover the kernel, proxy, container host, or deployment configuration. Current scan results belong with the tested release, not as a permanent assurance in this document.
