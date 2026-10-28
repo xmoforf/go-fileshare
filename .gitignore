@@ -2,8 +2,8 @@
 # Beads / Dolt files (added by bd init)
 .dolt/
 *.db
-.beads-credential-key
-.beads/proxieddb/
+.beads*
+.pi*
 
 # Local credentials, state and build output
 /config/
