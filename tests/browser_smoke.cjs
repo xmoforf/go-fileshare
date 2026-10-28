@@ -8,7 +8,7 @@ const path = require('node:path');
 const readline = require('node:readline');
 const { parseArgs } = require('node:util');
 const { chromium, firefox, webkit } = require('playwright');
-const { checkUI } = require('../ui_browser_test.js');
+const { checkUI, checkShareCopyReset, checkCompactLayout } = require('../ui_browser_test.js');
 const { checkThemes, checkThemeStorage } = require('./theme_browser.cjs');
 
 // Expected URLs are independent of the renderer's data-href and URL helpers.
@@ -153,6 +153,9 @@ async function main() {
             await page.getByLabel('Username', { exact: true }).fill('owner');
             await page.getByLabel('Password', { exact: true }).fill('test-password');
             await page.getByRole('button', { name: 'Log in', exact: true }).click();
+            await page.getByText('208 items', { exact: true }).waitFor({ state: 'visible' });
+            console.log(label, await checkShareCopyReset(page));
+            console.log(label, await checkCompactLayout(page));
             console.log(label, await checkThemes(page));
             await checkThemeStorage(browser, url, viewport);
             console.log(label, await checkUI(page));

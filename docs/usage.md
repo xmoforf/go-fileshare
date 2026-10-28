@@ -34,13 +34,13 @@ The list scrolls continuously and mounts only nearby rows plus a retained focus 
 
 ## Themes
 
-Choose **Choose theme** in the toolbar. Search names with ordinary text (case-insensitive, not regex); Tab to the native **Theme** list and use arrow keys or type-ahead. Choose **Apply** to save. Search and selection do not preview or change the current theme. If filtering removes the selection, choose a visible result before applying. No matches disables Apply. **Cancel** or Escape discards the draft and returns focus to the toolbar button.
+Use **Choose theme** in the top-right header. Search names with ordinary text (case-insensitive, not regex); Tab to the native **Theme** list and use arrow keys or type-ahead. Choose **Apply** to save. Search and selection do not preview or change the current theme. If filtering removes the selection, choose a visible result before applying. No matches disables Apply. **Cancel** or Escape discards the draft and returns focus to the header button.
 
 Choices: Light, Dark, Catppuccin Latte/Frappe/Macchiato/Mocha, Nord, Atom One Dark/Light and Rose Pine/Moon/Dawn. These are representative UI adaptations from a pinned collection snapshot, not a popularity ranking or exact terminal renderings. Colors, secondary surfaces and status cues are adjusted for readability; upstream authors do not endorse this UI.
 
 **Use system default** clears the saved preference and applies the current OS light/dark setting (dark if unavailable). The OS setting is read at page load and reset, not continuously. Explicit Light/Dark choices remain supported, including older saved preferences. Unknown or malformed preferences fall back safely. If browser storage is denied, changes work for the current page but may not persist; reset cannot erase storage the browser refuses to access.
 
-Preferences stay in local storage for this origin and pathname: the owner page and each shared-folder link have separate settings; navigating subfolders within one link keeps its theme. Nothing is sent to the server or another site. Themes need no external network; file listings still require the server. A saved theme also colors the login dialog, but its required modal login must finish before the toolbar can be used. Browser/OS forced-color overrides remain enabled.
+Preferences stay in local storage for this origin and pathname: the owner page and each shared-folder link have separate settings; navigating subfolders within one link keeps its theme. Nothing is sent to the server or another site. Themes need no external network; file listings still require the server. A saved theme also colors the login dialog, but its required modal login must finish before the header controls can be used. Browser/OS forced-color overrides remain enabled.
 
 ## Browsers, downloads and media
 

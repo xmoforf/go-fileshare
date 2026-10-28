@@ -106,4 +106,52 @@ async function checkUI(page) {
   return 'PASS: native sort, scroll focus, 624 Tabs, reverse Tab/Home/End, full filter, preset-only controls and four preset expiries';
 }
 
-if (typeof module !== 'undefined') module.exports = { checkUI };
+async function checkShareCopyReset(page) {
+  await page.evaluate(() => {
+    window.testClipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: () => Promise.resolve() } });
+  });
+  try {
+    await page.getByRole('button', { name: 'Share folder', exact: true }).click();
+    await page.getByRole('button', { name: 'Create link', exact: true }).click();
+    await page.getByLabel('Share link', { exact: true }).waitFor({ state: 'visible' });
+    await page.getByRole('button', { name: 'Copy link', exact: true }).click();
+    await page.getByRole('button', { name: 'Copied', exact: true }).waitFor({ state: 'visible' });
+    await page.locator('#shareDialog').getByRole('button', { name: 'Close', exact: true }).click();
+    await page.getByRole('button', { name: 'Share folder', exact: true }).click();
+    if (await page.locator('#copyShare').textContent() !== 'Copy link') throw new Error('new share must reset Copied feedback');
+  } finally {
+    await page.evaluate(() => {
+      if (window.testClipboardDescriptor) Object.defineProperty(navigator, 'clipboard', window.testClipboardDescriptor);
+      else delete navigator.clipboard;
+      delete window.testClipboardDescriptor;
+    });
+    await page.locator('#shareDialog').getByRole('button', { name: 'Close', exact: true }).click();
+  }
+  return 'PASS: new share resets Copied feedback';
+}
+
+async function checkCompactLayout(page) {
+  const layout = await page.evaluate(() => {
+    const rect = id => document.getElementById(id).getBoundingClientRect();
+    const row = document.querySelector('#viewport .row');
+    const copy = row.querySelector('button[data-href]').getBoundingClientRect();
+    const size = row.querySelector('.col-size').getBoundingClientRect();
+    return {
+      utilitiesAboveFilter: rect('themeToggle').bottom <= rect('search').top && rect('logout').bottom <= rect('search').top,
+      trailingActions: copy.left >= size.right,
+      headerAligned: Math.abs(document.querySelector('[data-sort="size"]').getBoundingClientRect().right - size.right) < 2,
+      listingTop: rect('scrollWrap').top,
+      narrow: innerWidth <= 400,
+      overflow: document.documentElement.scrollWidth > innerWidth,
+    };
+  });
+  if (!layout.utilitiesAboveFilter) throw new Error('theme/logout must sit above filter in utility header');
+  if (!layout.trailingActions) throw new Error('row actions must trail metadata');
+  if (!layout.headerAligned) throw new Error('size header must align with row metadata');
+  if (layout.overflow) throw new Error('compact layout must not overflow horizontally');
+  if (layout.narrow && layout.listingTop > 200) throw new Error('narrow listing must start within 200px');
+  return 'PASS: compact header, trailing row actions and viewport fit';
+}
+
+if (typeof module !== 'undefined') module.exports = { checkUI, checkShareCopyReset, checkCompactLayout };
