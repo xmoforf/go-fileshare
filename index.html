@@ -371,11 +371,12 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
   </div>
 </div>
 <div class="toolbar">
-  <input type="text" id="search" aria-label="Filter files" placeholder="Filter files... ( /regex/ )" autofocus>
+  <input type="text" id="search" aria-label="Filter files" aria-describedby="filterError" placeholder="Filter files... ( /regex/ )" autofocus>
   <div class="stats" id="stats"></div>
   <button class="action" id="shareCurrent" hidden>Share folder</button>
   <button class="action" id="manageShares" hidden>Shares</button>
 </div>
+<div id="filterError" role="status"></div>
 <div class="thead" id="thead" role="group" aria-label="Sort files">
   <button type="button" class="col-name" data-sort="name">Name</button>
   <button type="button" class="col-size" data-sort="size">Size</button>
@@ -743,6 +744,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     var regexMatch = q.match(/^\/(.+)\/([gimsuy]*)$/);
     var regex = null;
     var terms = [];
+    var invalid = false;
 
     if (regexMatch) {
       try {
@@ -751,14 +753,19 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
         if (flags.indexOf('i') === -1) flags += 'i';
         regex = new RegExp(regexMatch[1], flags);
       } catch (e) {
-        regex = null;
+        invalid = true;
       }
     } else {
       q = q.toLowerCase();
       terms = q ? q.split(/\s+/) : [];
     }
 
+    searchInput.setAttribute('aria-invalid', String(invalid));
+    document.getElementById('filterError').textContent = invalid
+      ? 'Invalid regular expression. Fix it or clear the filter to show files.' : '';
+
     filtered = allItems.filter(function(item) {
+      if (invalid) return false;
       if (!regex && terms.length === 0) return true;
       if (regex) return regex.test(item.name);
       var name = item.name.toLowerCase();

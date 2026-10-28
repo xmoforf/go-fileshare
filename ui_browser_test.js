@@ -154,4 +154,39 @@ async function checkCompactLayout(page) {
   return 'PASS: compact header, trailing row actions and viewport fit';
 }
 
-if (typeof module !== 'undefined') module.exports = { checkUI, checkShareCopyReset, checkCompactLayout };
+async function checkFileFilter(page) {
+  function assert(value, message) { if (!value) throw new Error(message); }
+  const search = page.getByLabel('Filter files', { exact: true });
+  const rows = page.locator('#viewport .row');
+  const error = page.locator('#filterError');
+  const message = 'Invalid regular expression. Fix it or clear the filter to show files.';
+  for (const [invalid, recovery, count] of [
+    ['/[/', 'ITEM-204', 1],
+    ['/item/ii', '/item-20[34]/giy', 2],
+    ['/(/', '', 208],
+  ]) {
+    await search.focus();
+    await search.press('ControlOrMeta+A');
+    await search.pressSequentially(invalid);
+    await page.getByText(message, { exact: true }).waitFor({ state: 'visible' });
+    assert(await rows.count() === 0, 'invalid regex must not match all files or retain stale rows');
+    assert(await page.locator('#stats').textContent() === '0 / 208 items', 'invalid regex has zero results');
+    assert(await search.getAttribute('aria-invalid') === 'true', 'invalid filter marked for assistive technology');
+    assert(await search.getAttribute('aria-describedby') === 'filterError', 'error associated with filter');
+    assert(await error.getAttribute('role') === 'status', 'error announced without moving focus');
+    assert(await search.evaluate(el => el === document.activeElement), 'invalid input keeps keyboard focus');
+    await page.locator('[data-sort="name"]').press('Enter');
+    assert(await rows.count() === 0 && await error.textContent() === message, 'sorting preserves invalid state');
+    await search.fill(recovery);
+    await page.getByText(count === 208 ? '208 items' : count + ' / 208 items', { exact: true }).waitFor({ state: 'visible' });
+    assert(await error.textContent() === '', 'correcting or clearing filter removes error');
+    assert(await search.getAttribute('aria-invalid') === 'false', 'recovery clears invalid state');
+    if (count < 208) {
+      const names = await rows.locator('.fname').allTextContents();
+      assert(names.includes('item-204.txt') && (count === 1 || names.includes('item-203.txt')), 'literal and regex preserve case-insensitive matches');
+    }
+  }
+  return 'PASS: invalid regex feedback, keyboard focus, sorting, literal/regex recovery and reset';
+}
+
+if (typeof module !== 'undefined') module.exports = { checkUI, checkShareCopyReset, checkCompactLayout, checkFileFilter };

@@ -8,7 +8,7 @@ const path = require('node:path');
 const readline = require('node:readline');
 const { parseArgs } = require('node:util');
 const { chromium, firefox, webkit } = require('playwright');
-const { checkUI, checkShareCopyReset, checkCompactLayout } = require('../ui_browser_test.js');
+const { checkUI, checkShareCopyReset, checkCompactLayout, checkFileFilter } = require('../ui_browser_test.js');
 const { checkThemes, checkThemeStorage } = require('./theme_browser.cjs');
 
 // Expected URLs are independent of the renderer's data-href and URL helpers.
@@ -154,6 +154,7 @@ async function main() {
             await page.getByLabel('Password', { exact: true }).fill('test-password');
             await page.getByRole('button', { name: 'Log in', exact: true }).click();
             await page.getByText('208 items', { exact: true }).waitFor({ state: 'visible' });
+            console.log(label, await checkFileFilter(page));
             console.log(label, await checkShareCopyReset(page));
             console.log(label, await checkCompactLayout(page));
             console.log(label, await checkThemes(page));
@@ -179,6 +180,7 @@ async function main() {
             await guest.getByText('208 items', { exact: true }).waitFor({ state: 'visible' });
             assert.equal(await guest.locator('#shareCurrent').isVisible(), false);
             assert.equal(await guest.locator('#manageShares').isVisible(), false);
+            console.log(label, 'recipient', await checkFileFilter(guest));
             console.log(label, 'recipient', await checkThemes(guest));
             await guest.evaluate(() => localStorage.setItem(':theme', '"dark"'));
             await guest.getByRole('button', { name: 'Choose theme', exact: true }).click();

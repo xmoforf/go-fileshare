@@ -28,6 +28,8 @@ Expiry/revocation blocks new requests, including HEAD and range requests. Downlo
 
 ## Keyboard and large folders
 
+**Filter files** matches names case-insensitively: use space-separated text terms or `/regex/`. An invalid regular expression shows an error and no files; correct it or clear the filter to restore the listing.
+
 Tab/Shift+Tab reaches links and actions, including offscreen rows. On a filename, Arrow Up/Down moves between entries; Home/End jumps to first/last. Opening a directory focuses its filter. Native buttons work with Enter/Space; dialogs have Close or Cancel buttons (the required login dialog cannot be canceled).
 
 The list scrolls continuously and mounts only nearby rows plus a retained focus row. Use the directory filter rather than browser Find for names not mounted in the page. Filtering/sorting covers the whole listing, which still consumes browser memory. A 100,000-entry test is not a promise for every phone, browser or storage device.
