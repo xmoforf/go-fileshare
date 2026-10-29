@@ -53,4 +53,4 @@ Keep root `compose.yaml`, `caddy/Caddyfile`, and the Compose guide examples in s
 
 Describe the behavior changed, checks run, and remaining limitations. Keep unrelated files out of commits. Branch/PR CI is check-only; release publication is described in [release procedures](docs/releases.md).
 
-For agent-assisted work, follow [AGENTS.md](https://github.com/xmoforf/go-fileshare/blob/main/AGENTS.md): Beads tracks work, task-owned changes are verified and committed, and deployment, pushes, and publication require separate approval. A version-tag push triggers registry publication; approval must include those effects.
+For agent-assisted work, follow [AGENTS.md](https://github.com/xmoforf/go-fileshare/blob/main/AGENTS.md): Beads tracks work, task-owned changes are verified and committed, and deployment, pushes, and publication require separate approval. A version-tag push triggers GHCR/Docker Hub publication and, after both succeed, GitHub Release creation; approval must include all three publication effects.

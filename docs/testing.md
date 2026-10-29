@@ -41,6 +41,7 @@ Open the printed loopback HTTPS URL. Its certificate is self-signed; allow it on
 | Change | Check | Expected result |
 |---|---|---|
 | Compose/configuration guide | `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_compose.py'` | Docs/config parity and rendered images, ports, networks, mounts, lifecycle, and identity contracts pass; rendering requires the Compose CLI, not a daemon, and is explicitly skipped if unavailable |
+| GitHub Release workflow/helper | `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_github_release.py'` | Version-specific notes, report identities, stable/prerelease flags, existing-release/API failure stops, and workflow gates/permissions pass with synthetic subprocesses; future tag execution requires separate publication approval |
 | Restore instructions | `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_operations.py'` | Restore chain never promotes a failed or unverified copy |
 | systemd unit/guide | `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_systemd.py'` | Static unit contract passes; additionally rehearse install/restart/update/permissions on a disposable systemd host |
 | NixOS module | `nix build .#checks.x86_64-linux.service --print-build-logs` | Disposable VM checks service startup, permissions, persistence, revocation, and missing-auth failure |
@@ -89,4 +90,4 @@ Network access is required for the vulnerability database. Retain scanner/compil
 | PR / `main` push; manual `full: false` | Native amd64 Go/Python contracts, Nix build, image build/version checks, Chromium desktop/narrow |
 | Manual `full: true` (default); release workflow | Native amd64 and arm64 contracts/builds/images, operations rehearsal and binary scans, host NixOS checks and source scan, Chromium/Firefox/WebKit desktop/narrow |
 
-Branch and manual checks do not publish images. Full checks retain tested image archives for seven days. Only executed checks establish coverage; see [release procedures](releases.md) for publication.
+Branch and manual checks do not publish images or GitHub Releases. Full checks retain tested image archives for seven days. Only executed checks establish coverage; see [release procedures](releases.md) for publication.

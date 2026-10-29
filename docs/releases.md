@@ -4,12 +4,12 @@ For maintainers publishing container images or building local binary archives. I
 
 ## Release prerequisites
 
-1. Select a reviewed commit on `main` and a version. Record state/API compatibility, upgrade steps, and known issues.
+1. Select a reviewed commit on `main` and a version. Add one nonempty `## vMAJOR.MINOR.PATCH[-prerelease]` section to `RELEASE_NOTES.md`, with `###` subsections for changes, upgrade steps/state/API compatibility, and known issues. Use absolute, version-pinned documentation links so they work on GitHub Release pages. Keep level-two headings reserved for release sections, including inside code examples.
 2. Run the full [test matrix](testing.md), including native amd64/arm64 checks, all browser engine/viewport combinations, operations rehearsals, and fresh vulnerability scans.
 3. Verify bundled notices and artifact identities. Rehearse old/new binaries when claiming cross-version compatibility.
-4. Obtain approval for the exact version-tag push and its GHCR/Docker Hub publication effects. Branch pushes remain check-only; deployment is separate.
+4. Obtain approval for the exact version-tag push and its GHCR/Docker Hub **and GitHub Release** publication effects. Branch pushes remain check-only; deployment is separate.
 
-Release tags use `vMAJOR.MINOR.PATCH` with an optional prerelease suffix. Build metadata, numeric prerelease identifiers with leading zeros, malformed tags, and Docker-overlength tags are rejected. Validate without publishing using `python3 scripts/image_release.py v1.0.4`.
+Release tags use `vMAJOR.MINOR.PATCH` with an optional prerelease suffix. Build metadata, numeric prerelease identifiers with leading zeros, malformed tags, and Docker-overlength tags are rejected. Validate without publishing using `python3 scripts/image_release.py v1.0.4`; preview the exact notes section with `python3 scripts/github_release.py v1.0.4`. The workflow validates both before any registry publication.
 
 ## Build and verify
 
@@ -35,7 +35,11 @@ An approved version tag on `main` triggers `.github/workflows/release.yml`. Afte
 - `ghcr.io/xmoforf/go-fileshare`, using the job's ephemeral `GITHUB_TOKEN`.
 - `docker.io/xmoforf/go-fileshare`, using repository secret `DOCKERHUB_TOKEN` for username `xmoforf`.
 
-Only the GHCR job receives `packages: write`. Build/test jobs receive no registry credentials. Releases are serialized; submit one version at a time because queued GitHub concurrency runs may replace one another. Workflows do not create Git tags, GitHub Releases, or deployments.
+Only the GHCR job receives `packages: write`. After full checks and **both** registry jobs succeed, a separate `github-release` job receives job-scoped `contents: write` and creates the GitHub Release. Build/test jobs remain read-only and receive no publication credentials; checkout credentials are not persisted.
+
+The GitHub Release uses only that version's notes, appends both exact image references and digest pins from the successful publication reports, and records the source commit. Reports must match the version/source and both tested platform identities. The existing remote tag must resolve to the checked-out commit. Prerelease tags produce GitHub prereleases and cannot become Latest; stable releases use GitHub's automatic Latest selection, not a forced promotion. No binary assets are uploaded; GitHub supplies its normal source archives.
+
+Releases are serialized; submit one version at a time because queued GitHub concurrency runs may replace one another. Workflows do not create Git tags or deployments. An existing GitHub Release, including a draft, is an error: no automatic edit or overwrite, even if its metadata already matches.
 
 ### Release tags
 
@@ -57,10 +61,12 @@ For example, use `docker buildx imagetools inspect ghcr.io/xmoforf/go-fileshare:
 
 Inspect both publication jobs and reports. Confirm version/source labels, platform manifests, index/config digests, and an anonymous digest pull with the expected `-version`. Initial GHCR visibility can require a separately approved change; do not advertise public availability until anonymous access works.
 
-Retain the commit/tag, native test results, and `publication-report-ghcr.io` / `publication-report-docker.io` artifacts outside expiring CI storage. Image archives expire after seven days; publication reports expire after 90 days. Record native ARM execution separately from emulation or cross-build evidence.
+Verify the GitHub Release through the API or public page: exact tag/source, version-specific body and image pins, stable/prerelease state, and no unexpected assets. Release creation can notify watchers. Retain its URL/API response alongside the commit/tag, native test results, and `publication-report-ghcr.io` / `publication-report-docker.io` artifacts outside expiring CI storage. Image archives expire after seven days; publication reports expire after 90 days. Record native ARM execution separately from emulation or cross-build evidence.
 
 ## Handle partial publication
 
-Publication is not transactional across registries. One registry can succeed while the other fails; no automatic rollback occurs. Preflight rejects existing exact/platform tags and fails closed on malformed inventories, network errors, or authentication errors.
+Publication is not transactional across registries or GitHub. One registry can succeed while the other fails; no automatic rollback occurs. A failed, cancelled, or skipped check/registry job prevents the GitHub Release job from running. Preflight rejects existing exact/platform tags and fails closed on malformed inventories, network errors, or authentication errors.
 
 Before retrying, inspect both reports and registry digests. A rerun encountering partial tags stops rather than overwriting them. Obtain separate approval for a specific recovery operation; do not delete or overwrite tags to force a rerun through. Restrict other registry writers so they cannot bypass publication policy.
+
+If both registries succeeded but GitHub Release creation failed, preserve their reports and inspect the Release API before doing anything else. A timeout or lost response may mean the Release already exists. Do not rerun the entire workflow: its registry publishers reject the already-published exact tags. Obtain separate approval for a release-only recovery bound to the existing tag/source, exact notes, and verified image digests. Existing metadata edits/deletion, tag changes, registry republishing, and automated retries are outside this workflow. Restrict other tag/release writers; preflight checks cannot prevent concurrent external mutation.

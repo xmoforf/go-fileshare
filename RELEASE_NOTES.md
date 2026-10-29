@@ -13,15 +13,15 @@
 
 ### Upgrade
 
-No application state-format or API-format migration is added. Existing shares, expiry times, and revocations retain their meaning. Follow the [update and rollback procedure](docs/operations.md#update-and-roll-back), then reload the browser.
+No application state-format or API-format migration is added. Existing shares, expiry times, and revocations retain their meaning. Follow the [update and rollback procedure](https://github.com/xmoforf/go-fileshare/blob/v1.0.4/docs/operations.md#update-and-roll-back), then reload the browser.
 
-The former `/regex/flags` filter shortcut is no longer recognized. Enable **`.*`**, enter the pattern without delimiters or flags, and use **Aa** for case sensitivity. **""** selects one literal substring; otherwise space-separated terms are matched independently. See [filter controls](docs/usage.md#browse-files).
+The former `/regex/flags` filter shortcut is no longer recognized. Enable **`.*`**, enter the pattern without delimiters or flags, and use **Aa** for case sensitivity. **""** selects one literal substring; otherwise space-separated terms are matched independently. See [filter controls](https://github.com/xmoforf/go-fileshare/blob/v1.0.4/docs/usage.md#browse-files).
 
-**Existing Compose installations must not replace their configuration blindly.** The example now uses mutable published images, public Caddy ports, shared proxy networking, different bind paths, and named Caddy volumes, without the former hardening blocks. Preserve credentials, the whole stopped state directory, and certificate storage; deliberately map existing mounts and permissions. Read [existing deployment guidance](docs/compose.md#existing-deployments) before adopting the example.
+**Existing Compose installations must not replace their configuration blindly.** The example now uses mutable published images, public Caddy ports, shared proxy networking, different bind paths, and named Caddy volumes, without the former hardening blocks. Preserve credentials, the whole stopped state directory, and certificate storage; deliberately map existing mounts and permissions. Read [existing deployment guidance](https://github.com/xmoforf/go-fileshare/blob/v1.0.4/docs/compose.md#existing-deployments) before adopting the example.
 
 ### Known limitations
 
-Filtering still covers only the current directory. Narrow screens wrap controls; large listings still consume browser memory despite virtualized rows. README media illustrates the sharing workflow but predates the final compact header and filter buttons. No uploads, transcoding, or multi-user permissions are added. HTTPS and public-ingress protections remain operator responsibilities; see [application limits](SECURITY.md#application-limits) and [proxy hardening](docs/hardening.md).
+Filtering still covers only the current directory. Narrow screens wrap controls; large listings still consume browser memory despite virtualized rows. README media illustrates the sharing workflow but predates the final compact header and filter buttons. No uploads, transcoding, or multi-user permissions are added. HTTPS and public-ingress protections remain operator responsibilities; see [application limits](https://github.com/xmoforf/go-fileshare/blob/v1.0.4/SECURITY.md#application-limits) and [proxy hardening](https://github.com/xmoforf/go-fileshare/blob/v1.0.4/docs/hardening.md).
 
 ## v1.0.3
 
