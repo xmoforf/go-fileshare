@@ -45,6 +45,8 @@ nix flake check
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_*.py'
 ```
 
+Keep root `compose.yaml`, `caddy/Caddyfile`, and the Compose guide examples in sync. Python contracts render Compose when its CLI is installed (no daemon needed); without it, rendered-config checks are skipped. Run them with Compose available before submitting stack changes.
+
 [Testing](docs/testing.md) covers browser, installation, recovery, resource, and vulnerability checks. Cross-compilation or evaluation alone does not establish native ARM runtime coverage.
 
 ## Submit a contribution

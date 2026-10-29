@@ -40,6 +40,7 @@ Open the printed loopback HTTPS URL. Its certificate is self-signed; allow it on
 
 | Change | Check | Expected result |
 |---|---|---|
+| Compose/configuration guide | `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_compose.py'` | Docs/config parity and rendered images, ports, networks, mounts, lifecycle, and identity contracts pass; rendering requires the Compose CLI, not a daemon, and is explicitly skipped if unavailable |
 | Restore instructions | `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_operations.py'` | Restore chain never promotes a failed or unverified copy |
 | systemd unit/guide | `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_systemd.py'` | Static unit contract passes; additionally rehearse install/restart/update/permissions on a disposable systemd host |
 | NixOS module | `nix build .#checks.x86_64-linux.service --print-build-logs` | Disposable VM checks service startup, permissions, persistence, revocation, and missing-auth failure |

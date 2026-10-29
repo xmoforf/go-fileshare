@@ -13,6 +13,7 @@
 /data/
 /state/
 /auth.json
+/fileshare/
 /file-share
 /node_modules/
 __pycache__/

@@ -36,7 +36,7 @@ services:
       dockerfile: Dockerfile.caddy
 ```
 
-Replace the hostname block in `Caddyfile` with:
+Replace the hostname block in `caddy/Caddyfile` with:
 
 ```caddyfile
 files.example.com {

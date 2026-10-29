@@ -23,7 +23,7 @@ Shutdown lets active requests finish for up to 30 seconds, then interrupts remai
 Credentials are read at startup. Changing a password does not revoke shared links.
 
 1. Generate a hash with `file-share -hash-password` as described in [configuration](configuration.md#owner-account).
-2. Prepare a new auth JSON file beside the current one. Retain service-readable ownership/mode: `root:file-share` and `0640` for systemd/NixOS; the selected UID/GID and `0600` for Compose.
+2. Prepare a new auth JSON file beside the current one. Retain service-readable ownership/mode: `root:file-share` and `0640` for systemd/NixOS; UID `999`, GID `993`, and `0600` for the default Compose image (use host-mapped IDs with user namespaces).
 3. Stop the application. Preserve the old auth file privately, rename the new file over the configured path, and start/recreate the application.
 4. Verify that the new login works, the old password/session fails, and an existing share still works. Revoke compromised links separately through **Shares**.
 
@@ -51,7 +51,7 @@ sudo cmp /var/lib/file-share/shares.db "$backup/state/shares.db" &&
 sudo stat -c '%a %U:%G %n' "$backup" "$backup/state" "$backup/config/auth.json"
 ```
 
-Also preserve proxy configuration and the content snapshot reference. For Compose, preserve the image identity, Compose files, `config/`, and whole `state/` directory. Caddy's named volumes contain certificate/config data; stop Caddy before backing those up using your volume-backup process. For NixOS, preserve the host configuration/lock and retain the package closure under your Nix GC policy rather than copying a mutable binary/unit.
+Also preserve proxy configuration and the content snapshot reference. For Compose, preserve both image identities, `compose.yaml`, `caddy/Caddyfile`, `fileshare/auth.json`, and the whole `fileshare/state/` directory. Caddy's named volumes contain certificate/config data; stop Caddy before backing those up using your volume-backup process. For NixOS, preserve the host configuration/lock and retain the package closure under your Nix GC policy rather than copying a mutable binary/unit.
 
 Test restoration in an isolated environment before relying on a backup. Copying only a running `shares.db` is not a consistent backup; online backups require a SQLite-aware backup tool.
 

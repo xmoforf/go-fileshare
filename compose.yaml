@@ -1,19 +1,27 @@
 services:
-  fileshare:
-    image: ${FILE_SHARE_IMAGE:-go-fileshare:local}
-    build: .
-    user: "${FILE_SHARE_UID:-999}:${FILE_SHARE_GID:-993}"
-    command: ["-origin", "${FILE_SHARE_ORIGIN:?set explicit external HTTPS origin}"]
-    read_only: true
-    cap_drop: [ALL]
-    security_opt: ["no-new-privileges:true"]
+  caddy:
+    image: caddy:2
     restart: unless-stopped
     stop_grace_period: 40s
-    mem_limit: 512m
-    cpus: 2
-    pids_limit: 128
-    ulimits:
-      nofile: {soft: 4096, hard: 4096}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - type: bind
+        source: ./caddy/Caddyfile
+        target: /etc/caddy/Caddyfile
+        read_only: true
+        bind: {create_host_path: false}
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [proxy]
+
+  fileshare:
+    image: ghcr.io/xmoforf/go-fileshare:latest
+    command: ["-origin", "https://files.example.com"]
+    restart: unless-stopped
+    stop_grace_period: 40s
     healthcheck:
       test: ["CMD", "/file-share", "-healthcheck"]
       interval: 5s
@@ -22,55 +30,26 @@ services:
       start_period: 5s
     volumes:
       - type: bind
-        source: ${FILE_SHARE_DATA:?set absolute served directory}
+        source: ./fileshare/data
         target: /data
         read_only: true
         bind: {create_host_path: false}
       - type: bind
-        source: ${FILE_SHARE_AUTH:?set absolute auth.json path}
+        source: ./fileshare/auth.json
         target: /config/auth.json
         read_only: true
         bind: {create_host_path: false}
       - type: bind
-        source: ${FILE_SHARE_STATE:?set absolute state directory}
+        source: ./fileshare/state
         target: /state
         bind: {create_host_path: false}
-    logging: {driver: local}
+    networks: [proxy, fileserver]
 
-  caddy:
-    image: caddy:2.11.7-alpine@sha256:eb4d35b7452d1ab6171fbdbe8d9275b2301dad6dad92115d91e19fb9b24d510f
-    user: "${FILE_SHARE_UID:-999}:${FILE_SHARE_GID:-993}"
-    read_only: true
-    cap_drop: [ALL]
-    # Official Caddy binary carries this file capability; also binds 80/443.
-    cap_add: [NET_BIND_SERVICE]
-    security_opt: ["no-new-privileges:true"]
-    restart: unless-stopped
-    stop_grace_period: 40s
-    mem_limit: 256m
-    cpus: 2
-    pids_limit: 128
-    ulimits:
-      nofile: {soft: 4096, hard: 4096}
-    environment:
-      FILE_SHARE_SITE: ${FILE_SHARE_SITE:?set HTTPS site without external port mapping}
-    depends_on:
-      fileshare: {condition: service_healthy}
-    ports:
-      - "${FILE_SHARE_BIND:-127.0.0.1}:${FILE_SHARE_HTTP_PORT:-80}:80"
-      - "${FILE_SHARE_BIND:-127.0.0.1}:${FILE_SHARE_HTTPS_PORT:-443}:443"
-    volumes:
-      - type: bind
-        source: ./Caddyfile
-        target: /etc/caddy/Caddyfile
-        read_only: true
-        bind: {create_host_path: false}
-      - type: bind
-        source: ${CADDY_DATA:?set absolute Caddy certificate directory}
-        target: /data
-        bind: {create_host_path: false}
-      - type: bind
-        source: ${CADDY_CONFIG:?set absolute Caddy config directory}
-        target: /config
-        bind: {create_host_path: false}
-    logging: {driver: local}
+networks:
+  proxy:
+    name: proxy
+  fileserver:
+
+volumes:
+  caddy_data:
+  caddy_config:

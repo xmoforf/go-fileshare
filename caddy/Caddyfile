@@ -1,0 +1,8 @@
+{
+	admin off
+	grace_period 35s
+}
+
+files.example.com {
+	reverse_proxy fileshare:8080
+}

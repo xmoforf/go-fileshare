@@ -35,7 +35,7 @@ The application runs as a single binary with no external database server or runt
 
 ## Installation
 
-**Docker Compose with a published image is the recommended starting point.**
+**Docker Compose with a published image is the recommended starting point.** The root [`compose.yaml`](compose.yaml) matches the [installation guide](docs/compose.md): pull-only images, public Caddy HTTPS/HTTP/3, and explicit `-origin` configuration. Prepare credentials and writable state before starting.
 
 | Method | Guide |
 |---|---|

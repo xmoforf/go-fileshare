@@ -58,6 +58,10 @@ Route that HTTPS hostname to `127.0.0.1:8080` through your proxy. In another ter
 
 ### Build a container from source
 
-The repository-root `compose.yaml` builds the current checkout rather than pulling a release. Copy `compose.env.example` to `.env`; set its absolute content/auth/state/Caddy paths, UID/GID, and HTTPS site/origin. Create all mount sources first, including the configured auth file. Then run `docker compose config --quiet` and `docker compose build fileshare`. Generate a hash with `docker compose run --rm --no-deps -T fileshare -hash-password` and update the auth file before `docker compose up -d --wait`.
+Build the current checkout explicitly:
 
-That stack binds Caddy ports to loopback by default and uses separate host Caddy data/config directories owned by the selected UID/GID. Its HTTPS certificate challenges need suitable ingress routing. The [published-image Compose guide](compose.md) is the simpler installation path.
+```sh
+docker build -t go-fileshare:local .
+```
+
+The repository-root `compose.yaml` pulls published images; it does not build source. To run your local build, follow the [Compose guide](compose.md), replace the file-share image with `go-fileshare:local`, and omit the application image pull. Keep the same credential/state permissions and verification steps. No separate development stack is required.
