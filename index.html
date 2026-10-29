@@ -462,7 +462,8 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     var response = await fetch(url, options);
     if (!response.ok) {
       if (response.status === 401 && !shareToken && !loginDialog.open) loginDialog.showModal();
-      throw new Error(response.status === 404 ? 'Link unavailable, expired, or revoked.' : response.status === 429 ? 'Too many attempts. Try again in a minute.' : 'Request failed (' + response.status + ').');
+      if (response.status === 401 && url === '/api/login') throw new Error('Login failed. Check your username and password, then try again.');
+      throw new Error(response.status === 404 ? 'Link unavailable. Contact the sender for a new link.' : response.status === 429 ? 'Too many attempts. Try again in a minute.' : 'Request failed (' + response.status + ').');
     }
     return response.status === 204 ? null : response.json();
   }

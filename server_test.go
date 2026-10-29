@@ -105,6 +105,67 @@ func TestOwnerAndCSRF(t *testing.T) {
 		t.Fatal("logout ineffective")
 	}
 }
+func TestUnavailableShareFeedback(t *testing.T) {
+	a, _, _ := fixture(t)
+	c := login(t, a)
+	now := time.Now()
+	a.now = func() time.Time { return now }
+	expired := create(t, a, c, "folder", 60)
+	revoked := create(t, a, c, "folder/sub/movie.mp4", 0)
+	if w := request(a, "DELETE", "/api/shares?token="+revoked.Token, "", c); w.Code != 204 {
+		t.Fatal("revoke", w.Code)
+	}
+	now = now.Add(time.Minute)
+	baseline := request(a, "GET", "/s/unknown/", "", "")
+	for _, id := range []string{"unknown", "<script>alert(1)</script>", expired.Token, revoked.Token} {
+		for _, suffix := range []string{"", "/", "/sub/movie.mp4"} {
+			for _, cookie := range []string{"", c} {
+				for _, method := range []string{"GET", "HEAD"} {
+					w := request(a, method, "/s/"+url.PathEscape(id)+suffix, "", cookie)
+					if w.Code != 404 || w.Header().Get("Content-Type") != "text/html; charset=utf-8" {
+						t.Fatalf("%s unavailable share: %d %s", method, w.Code, w.Header().Get("Content-Type"))
+					}
+					for header, want := range map[string]string{
+						"Cache-Control": "no-store", "Referrer-Policy": "no-referrer",
+						"X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY",
+						"Content-Security-Policy": "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+					} {
+						if w.Header().Get(header) != want {
+							t.Fatalf("%s: %q", header, w.Header().Get(header))
+						}
+					}
+					if method == "HEAD" {
+						if w.Body.Len() != 0 {
+							t.Fatal("HEAD must not include error page")
+						}
+					} else if w.Body.String() != baseline.Body.String() ||
+						!strings.Contains(w.Body.String(), "<h1>Link unavailable</h1>") ||
+						!strings.Contains(w.Body.String(), "Contact the sender for a new link.") {
+						t.Fatalf("nonuniform or missing recovery copy: %s", w.Body.String())
+					}
+				}
+			}
+		}
+		w := request(a, "GET", "/api/list?token="+url.QueryEscape(id), "", "")
+		if w.Code != 404 || w.Body.String() != "Not Found\n" {
+			t.Fatal("API denial changed", w.Code, w.Body.String())
+		}
+	}
+}
+
+func TestWrongCredentialsRemainDenied(t *testing.T) {
+	a, _, _ := fixture(t)
+	for _, body := range []string{
+		`{"username":"owner","password":"wrong"}`,
+		`{"username":"unknown","password":"test-password"}`,
+	} {
+		w := request(a, "POST", "/api/login", body, "")
+		if w.Code != 401 || w.Body.String() != "Unauthorized\n" || len(w.Result().Cookies()) != 0 || len(a.sessions) != 0 {
+			t.Fatal("wrong credentials accepted or distinguished", w.Code, w.Body.String())
+		}
+	}
+}
+
 func TestShareLifecycle(t *testing.T) {
 	a, root, db := fixture(t)
 	c := login(t, a)

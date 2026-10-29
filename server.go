@@ -444,7 +444,12 @@ func (a *app) shared(w http.ResponseWriter, r *http.Request) {
 	parts := strings.SplitN(strings.TrimPrefix(r.URL.Path, "/s/"), "/", 2)
 	s, err := a.findShare(r, parts[0])
 	if err != nil {
-		fail(w, 404)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
+		w.WriteHeader(http.StatusNotFound)
+		if r.Method != "HEAD" {
+			io.WriteString(w, `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Link unavailable</title><main><h1>Link unavailable</h1><p>Contact the sender for a new link.</p></main></html>`)
+		}
 		return
 	}
 	tail := ""
