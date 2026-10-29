@@ -45,7 +45,7 @@ Use a current browser with JavaScript and cookies enabled. Clipboard permission 
 
 ## Change appearance
 
-Choose **Choose theme**, search or select a theme, then choose **Apply**. Search and selection do not change the current theme until applied. **Cancel** or Escape keeps the current choice. **Use system default** clears the saved preference and uses the OS light/dark setting.
+In either the owner or shared-folder browser, choose the palette icon (**Choose theme**) beside the item count, below the path. Search or select a theme, then choose **Apply**. Search and selection do not change the current theme until applied. **Cancel** or Escape keeps the current choice. **Use system default** clears the saved preference and uses the OS light/dark setting.
 
 Themes include Light, Dark, Catppuccin Latte/Frappe/Macchiato/Mocha, Nord, Atom One Dark/Light, and Rose Pine/Moon/Dawn. Preferences are saved in this browser, separately for the owner page and each shared-folder link. The OS preference is read at page load or reset. If browser storage is unavailable, a change may last only for the current page.
 

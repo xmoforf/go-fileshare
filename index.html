@@ -191,9 +191,8 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
   }
 
   /* ---- Header ---- */
-  .page-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
-  .utilities { display: flex; gap: 8px; flex-shrink: 0; }
-  .breadcrumbs { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .page-header { margin-bottom: 4px; }
+  .breadcrumbs { overflow-wrap: anywhere; }
   .breadcrumbs a { color: var(--accent); text-decoration: none; }
   .breadcrumbs a:hover { text-decoration: underline; }
   .breadcrumbs .sep { color: var(--text-dim); margin: 0 2px; }
@@ -206,7 +205,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     flex-wrap: wrap;
     padding-bottom: 8px;
   }
-  .filter { display: flex; gap: 8px; flex: 1; min-width: 0; }
   #search {
     background: var(--bg-input);
     border: 1px solid var(--border);
@@ -215,7 +213,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     padding: 8px 12px;
     font-size: 14px;
     flex: 1;
-    min-width: 0;
+    min-width: 120px;
     outline: none;
     font-family: var(--font);
     min-height: 36px;
@@ -226,7 +224,12 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     color: var(--text-dim);
     font-size: 12px;
     text-align: center;
+    white-space: nowrap;
   }
+  #themeToggle { display: flex; align-items: center; justify-content: center; min-width: 40px; padding: 6px; }
+  .toolbar > button, #searchModes { flex-shrink: 0; }
+  .owner-actions { display: none; }
+  .owner .owner-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
   /* ---- Table header ---- */
   .thead {
@@ -330,7 +333,9 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     .col-date { display: none; }
     .col-size, .row .col-size { width: 70px; font-size: 12px; }
     .row .col-size { font-size: 11px; }
-    .filter { flex-basis: 100%; }
+    .toolbar { display: grid; grid-template-columns: minmax(120px, 1fr) auto auto; }
+    #searchModes { grid-row: 2; }
+    #searchModes, .owner-actions { grid-column: 1 / -1; }
     .breadcrumbs { font-size: 0.95em; }
   }
 
@@ -371,23 +376,26 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 <div class="page-header">
   <div class="breadcrumbs" id="breadcrumbs"></div>
-  <div class="utilities">
-    <button class="action" id="themeToggle" aria-haspopup="dialog">Choose theme</button>
-    <button class="action" id="logout" hidden>Log out</button>
-  </div>
 </div>
 <div class="toolbar">
-  <div class="filter">
-    <input type="text" id="search" aria-label="Filter files" aria-describedby="filterError" placeholder="Filter files..." autofocus>
-    <div id="searchModes" role="group" aria-label="Search modes">
-      <button type="button" class="action" id="searchCase" aria-label="Case sensitive" title="Case sensitive" aria-pressed="false">Aa</button>
-      <button type="button" class="action" id="searchWhole" aria-label="Whole string" title="Whole string (including whitespace)" aria-pressed="false">""</button>
-      <button type="button" class="action" id="searchRegex" aria-label="Regular expression" title="Regular expression" aria-pressed="false">.*</button>
-    </div>
+  <input type="text" id="search" aria-label="Filter files" aria-describedby="filterError" placeholder="Filter files..." autofocus>
+  <div id="searchModes" role="group" aria-label="Search modes">
+    <button type="button" class="action" id="searchCase" aria-label="Case sensitive" title="Case sensitive" aria-pressed="false">Aa</button>
+    <button type="button" class="action" id="searchWhole" aria-label="Whole string" title="Whole string (including whitespace)" aria-pressed="false">""</button>
+    <button type="button" class="action" id="searchRegex" aria-label="Regular expression" title="Regular expression" aria-pressed="false">.*</button>
   </div>
   <div class="stats" id="stats"></div>
-  <button class="action" id="shareCurrent" hidden>Share folder</button>
-  <button class="action" id="manageShares" hidden>Shares</button>
+  <button class="action" id="themeToggle" aria-label="Choose theme" title="Choose theme" aria-haspopup="dialog">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" focusable="false">
+      <path d="M12 3a9 9 0 1 0 0 18h1a2 2 0 0 0 1.4-3.4 1.5 1.5 0 0 1 1.1-2.6H18a3 3 0 0 0 3-3 9 9 0 0 0-9-9Z"/>
+      <circle cx="7.5" cy="10" r="1"/><circle cx="10" cy="6.5" r="1"/><circle cx="14.5" cy="7" r="1"/><circle cx="17.5" cy="10.5" r="1"/>
+    </svg>
+  </button>
+  <div class="owner-actions">
+    <button class="action" id="shareCurrent" hidden>Share folder</button>
+    <button class="action" id="manageShares" hidden>Shares</button>
+    <button class="action" id="logout" hidden>Log out</button>
+  </div>
 </div>
 <div id="filterError" role="status"></div>
 <div class="thead" id="thead" role="group" aria-label="Sort files">

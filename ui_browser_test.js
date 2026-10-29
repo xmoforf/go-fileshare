@@ -132,26 +132,64 @@ async function checkShareCopyReset(page) {
 }
 
 async function checkCompactLayout(page) {
-  const layout = await page.evaluate(() => {
+  const trigger = page.getByRole('button', { name: 'Choose theme', exact: true });
+  if (await trigger.getAttribute('title') !== 'Choose theme' || (await trigger.textContent()).trim() !== '') {
+    throw new Error('theme trigger must be icon-only with accessible name and tooltip');
+  }
+  if (await trigger.locator('svg[aria-hidden="true"]').count() !== 1) throw new Error('theme trigger needs decorative inline SVG');
+  const failures = await page.evaluate(() => {
+    const failures = [];
     const rect = id => document.getElementById(id).getBoundingClientRect();
+    const breadcrumbs = document.getElementById('breadcrumbs');
+    const original = breadcrumbs.innerHTML;
+    const statsEl = document.getElementById('stats');
+    const originalCount = statsEl.textContent;
+    try {
+      // Stress layout only; navigation and real shared-folder access run separately.
+      for (const stress of [false, true]) {
+        if (stress) {
+          breadcrumbs.textContent = 'Root / ' + 'long-folder-name-'.repeat(30) + ' / child';
+          statsEl.textContent = '9999 / 10000 items';
+        }
+        const header = document.querySelector('.page-header').getBoundingClientRect();
+        const toolbar = document.querySelector('.toolbar').getBoundingClientRect();
+        const search = rect('search');
+        const theme = rect('themeToggle');
+        const stats = rect('stats');
+        const center = r => r.top + r.height / 2;
+        if (Math.abs(toolbar.top - header.bottom - 4) > 1) failures.push('path row needs 4px gap');
+        if (Math.abs(header.height - rect('breadcrumbs').height) > 1) failures.push('path row must be text-height');
+        if (Math.abs(center(search) - center(theme)) > 1 || Math.abs(center(search) - center(stats)) > 1) {
+          failures.push('filter/count/theme must stay on same row');
+        }
+        if (search.width < 120 || theme.width < 36 || theme.height < 36) failures.push('filter and theme targets must remain usable');
+        const controls = [...document.querySelectorAll('#search, #stats, .toolbar button')].filter(el => el.getClientRects().length);
+        const boxes = controls.map(el => el.getBoundingClientRect());
+        for (const [i, box] of boxes.entries()) {
+          if (box.left < 0 || box.right > innerWidth || box.top < toolbar.top || box.bottom > toolbar.bottom) failures.push('control outside toolbar/viewport');
+          if (controls[i].scrollWidth > controls[i].clientWidth) failures.push('clipped control');
+          if (controls[i].tagName === 'BUTTON' && box.height < 36) failures.push('button target shrank');
+          if (innerWidth > 700 && Math.abs(center(box) - center(search)) > 1) failures.push('desktop controls need one row');
+          for (const other of boxes.slice(i + 1)) {
+            if (box.left < other.right && other.left < box.right && box.top < other.bottom && other.top < box.bottom) failures.push('overlapping controls');
+          }
+        }
+        if (document.documentElement.scrollWidth > innerWidth) failures.push('horizontal overflow');
+        if (toolbar.height > (innerWidth > 700 ? 48 : 140)) failures.push('excess toolbar height');
+      }
+    } finally {
+      breadcrumbs.innerHTML = original;
+      statsEl.textContent = originalCount;
+    }
     const row = document.querySelector('#viewport .row');
     const copy = row.querySelector('button[data-href]').getBoundingClientRect();
     const size = row.querySelector('.col-size').getBoundingClientRect();
-    return {
-      utilitiesAboveFilter: rect('themeToggle').bottom <= rect('search').top && rect('logout').bottom <= rect('search').top,
-      trailingActions: copy.left >= size.right,
-      headerAligned: Math.abs(document.querySelector('[data-sort="size"]').getBoundingClientRect().right - size.right) < 2,
-      listingTop: rect('scrollWrap').top,
-      narrow: innerWidth <= 400,
-      overflow: document.documentElement.scrollWidth > innerWidth,
-    };
+    if (copy.left < size.right) failures.push('row actions must trail metadata');
+    if (Math.abs(document.querySelector('[data-sort="size"]').getBoundingClientRect().right - size.right) >= 2) failures.push('size header alignment');
+    return failures;
   });
-  if (!layout.utilitiesAboveFilter) throw new Error('theme/logout must sit above filter in utility header');
-  if (!layout.trailingActions) throw new Error('row actions must trail metadata');
-  if (!layout.headerAligned) throw new Error('size header must align with row metadata');
-  if (layout.overflow) throw new Error('compact layout must not overflow horizontally');
-  if (layout.narrow && layout.listingTop > 200) throw new Error('narrow listing must start within 200px');
-  return 'PASS: compact header, trailing row actions and viewport fit';
+  if (failures.length) throw new Error('compact layout: ' + failures.join(', '));
+  return 'PASS: compact path/controls, accessible palette, long paths, trailing actions and viewport fit';
 }
 
 async function checkFileFilter(page) {
