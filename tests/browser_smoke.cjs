@@ -8,7 +8,7 @@ const path = require('node:path');
 const readline = require('node:readline');
 const { parseArgs } = require('node:util');
 const { chromium, firefox, webkit } = require('playwright');
-const { checkUI, checkShareCopyReset, checkCompactLayout, checkFileFilter } = require('../ui_browser_test.js');
+const { checkUI, checkShareCopyReset, checkCompactLayout, checkFileFilter, checkUtilityPolish } = require('../ui_browser_test.js');
 const { checkThemes, checkThemeStorage } = require('./theme_browser.cjs');
 
 // Expected URLs are independent of the renderer's data-href and URL helpers.
@@ -28,8 +28,10 @@ async function checkRows(page, listingURL, owner) {
     await page.getByText('1 / 208 items', { exact: true }).waitFor({ state: 'visible' });
     const row = page.locator('#viewport .row');
     const link = row.getByRole('link', { name, exact: false });
-    const copy = row.getByTitle(isDirectory ? 'Copy folder link' : 'Copy link', { exact: true });
-    assert.equal(await copy.getAttribute('aria-label'), isDirectory ? 'Copy folder link for ' + name : null);
+    await link.waitFor({ state: 'visible' });
+    const copyLabel = owner ? 'Copy owner-only link' : isDirectory ? 'Copy folder link' : 'Copy link';
+    const copy = row.getByTitle(copyLabel, { exact: true });
+    assert.equal(await copy.getAttribute('aria-label'), copyLabel + ' for ' + name);
     assert.equal(await row.locator('.fname').textContent(), name);
     assert.equal(await link.getAttribute('href'), isDirectory ? hash + encoded : base + encoded);
     assert.deepEqual(await row.locator('a, button').evaluateAll(controls => controls.map(el => el.tagName)), owner ? ['A', 'BUTTON', 'BUTTON'] : ['A', 'BUTTON']);
@@ -139,8 +141,8 @@ async function main() {
         for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 }]) {
           const label = `${engine}-${viewport.width}`;
           // Certificate exception is confined to this synthetic loopback context.
-          const owner = await browser.newContext({ ignoreHTTPSErrors: true, viewport });
-          const recipient = await browser.newContext({ ignoreHTTPSErrors: true, viewport });
+          const owner = await browser.newContext({ ignoreHTTPSErrors: true, viewport, hasTouch: viewport.width < 700 });
+          const recipient = await browser.newContext({ ignoreHTTPSErrors: true, viewport, hasTouch: viewport.width < 700 });
           try {
             const page = await owner.newPage();
             page.setDefaultTimeout(10000);
@@ -162,6 +164,7 @@ async function main() {
             await page.getByLabel('Password', { exact: true }).fill('test-password');
             await page.getByRole('button', { name: 'Log in', exact: true }).click();
             await page.getByText('208 items', { exact: true }).waitFor({ state: 'visible' });
+            console.log(label, await checkUtilityPolish(page, true));
             console.log(label, await checkFileFilter(page));
             console.log(label, await checkShareCopyReset(page));
             console.log(label, await checkCompactLayout(page));
@@ -199,6 +202,7 @@ async function main() {
             assert.equal(await guest.locator('#shareCurrent').isVisible(), false);
             assert.equal(await guest.locator('#manageShares').isVisible(), false);
             assert.equal(await guest.locator('#logout').isVisible(), false);
+            console.log(label, 'recipient', await checkUtilityPolish(guest, false));
             console.log(label, 'recipient', await checkFileFilter(guest));
             console.log(label, 'recipient', await checkCompactLayout(guest));
             await guest.screenshot({ path: path.join(work, `${label}-recipient-header.png`) });

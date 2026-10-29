@@ -205,20 +205,30 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     flex-wrap: wrap;
     padding-bottom: 8px;
   }
-  #search {
+  .search-field {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 220px;
+    padding-right: 4px;
     background: var(--bg-input);
     border: 1px solid var(--border);
     border-radius: 4px;
+  }
+  .search-field:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #search {
+    background: transparent;
+    border: none;
     color: var(--text);
-    padding: 8px 12px;
+    padding: 6px 10px;
     font-size: 14px;
     flex: 1;
-    min-width: 120px;
+    min-width: 0;
+    width: 100%;
     outline: none;
     font-family: var(--font);
     min-height: 36px;
   }
-  #search:focus { border-color: var(--accent); }
   #search::placeholder { color: var(--text-dim); }
   .stats {
     color: var(--text-dim);
@@ -228,6 +238,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
   }
   #themeToggle { display: flex; align-items: center; justify-content: center; min-width: 40px; padding: 6px; }
   .toolbar > button, #searchModes { flex-shrink: 0; }
+  .stats, .col-size, .col-date { font-variant-numeric: tabular-nums; }
   .owner-actions { display: none; }
   .owner .owner-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
@@ -268,8 +279,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     align-items: center;
     min-height: 36px;
     padding: 0 10px;
-    border-bottom: 1px solid var(--border);
-    transition: background 150ms ease;
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 25%, transparent);
   }
   .row:hover { background: var(--bg-raised); }
   .row a {
@@ -279,6 +289,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     align-items: center;
     gap: 6px;
     min-width: 0;
+    height: 100%;
   }
   .row a:hover { text-decoration: underline; }
   .row .icon { flex-shrink: 0; font-size: 15px; width: 20px; text-align: center; }
@@ -287,7 +298,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .row .col-name { flex: 1; min-width: 0; }
+  .row .col-name { flex: 1; min-width: 0; height: 100%; }
   .row .col-size { width: 110px; text-align: right; color: var(--text-dim); font-size: 13px; flex-shrink: 0; }
   .row .col-date { width: 180px; text-align: right; color: var(--text-dim); font-size: 13px; flex-shrink: 0; }
 
@@ -309,7 +320,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     align-items: center;
     justify-content: center;
   }
-  .row:hover .copy-btn { opacity: 1; }
+  .row:hover .copy-btn, .copy-btn.file-link-action { opacity: 1; }
   .copy-btn:focus-visible { opacity: 1; outline: 1px solid var(--accent); }
   .copy-btn:hover { color: var(--accent); background: var(--btn-hover-bg); }
   .copy-btn.copied { color: var(--success); }
@@ -321,6 +332,8 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     color: var(--text-dim);
   }
   .status.error { color: var(--error); }
+  .empty-state { padding: 40px 16px; text-align: center; color: var(--text-dim); }
+  .empty-state button { margin-top: 12px; }
 
   /* ---- Mobile: touch devices ---- */
   @media (hover: none) {
@@ -333,15 +346,18 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     .col-date { display: none; }
     .col-size, .row .col-size { width: 70px; font-size: 12px; }
     .row .col-size { font-size: 11px; }
-    .toolbar { display: grid; grid-template-columns: minmax(120px, 1fr) auto auto; }
-    #searchModes { grid-row: 2; }
-    #searchModes, .owner-actions { grid-column: 1 / -1; }
+    .search-field { flex-basis: 100%; min-width: 0; }
+    .owner-actions { order: 1; flex: 1; }
+    .owner-actions .action { padding-inline: 8px; }
+    .stats { order: 2; }
+    #themeToggle { order: 3; }
     .breadcrumbs { font-size: 0.95em; }
   }
 
   @media (max-width: 400px) {
     .col-size, .row .col-size { width: 55px; }
-    .stats { min-width: auto; font-size: 11px; }
+    .stats { order: 4; flex-basis: 100%; text-align: left; font-size: 11px; }
+    body:not(.owner) .stats { order: 2; flex: 1; }
   }
   [hidden] { display: none !important; }
   button, select, dialog input { font: inherit; }
@@ -349,10 +365,25 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     color: var(--text); background: var(--bg-input); border: 1px solid var(--text-dim);
     border-radius: 4px; padding: 6px 10px; min-height: 36px;
   }
-  #searchModes { display: flex; gap: 4px; }
-  #searchModes button { min-width: 36px; padding: 6px; }
+  #searchModes { display: flex; gap: 2px; }
+  #searchModes button {
+    min-width: 28px; min-height: 28px; padding: 2px;
+    border: 1px solid transparent; border-radius: 3px;
+    background: transparent; color: var(--text-dim); font: inherit;
+  }
+  #searchModes button:hover { color: var(--text); }
   #searchModes button[aria-pressed="true"] {
     background: var(--btn-hover-bg); color: var(--accent); border-color: var(--accent);
+  }
+  #searchModes button:focus-visible { outline-offset: -2px; }
+  @media (pointer: coarse) {
+    #viewport { --row-height: 48px; }
+    .copy-btn { min-width: 44px; min-height: 44px; }
+    .thead { padding-right: 54px; }
+    .owner .thead { padding-right: 106px; }
+    .action, #search, #searchModes button, .thead button, dialog button, dialog select, dialog input { min-height: 44px; }
+    #searchModes button, #themeToggle { min-width: 44px; }
+    .breadcrumbs a { display: inline-block; min-width: 44px; min-height: 44px; padding: 10px 4px; }
   }
   button { cursor: pointer; }
   button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -378,13 +409,15 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
   <div class="breadcrumbs" id="breadcrumbs"></div>
 </div>
 <div class="toolbar">
-  <input type="text" id="search" aria-label="Filter files" aria-describedby="filterError" placeholder="Filter files..." autofocus>
-  <div id="searchModes" role="group" aria-label="Search modes">
-    <button type="button" class="action" id="searchCase" aria-label="Case sensitive" title="Case sensitive" aria-pressed="false">Aa</button>
-    <button type="button" class="action" id="searchWhole" aria-label="Whole string" title="Whole string (including whitespace)" aria-pressed="false">""</button>
-    <button type="button" class="action" id="searchRegex" aria-label="Regular expression" title="Regular expression" aria-pressed="false">.*</button>
+  <div class="search-field" id="searchField">
+    <input type="text" id="search" aria-label="Filter files" aria-describedby="filterError" placeholder="Filter files..." autofocus>
+    <div id="searchModes" role="group" aria-label="Search modes">
+      <button type="button" id="searchCase" aria-label="Case sensitive" title="Case sensitive" aria-pressed="false">Aa</button>
+      <button type="button" id="searchWhole" aria-label="Match phrase" title="Match phrase (including whitespace)" aria-pressed="false">""</button>
+      <button type="button" id="searchRegex" aria-label="Regular expression" title="Regular expression" aria-pressed="false">.*</button>
+    </div>
   </div>
-  <div class="stats" id="stats"></div>
+  <div class="stats" id="stats" role="status" aria-atomic="true"></div>
   <button class="action" id="themeToggle" aria-label="Choose theme" title="Choose theme" aria-haspopup="dialog">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" focusable="false">
       <path d="M12 3a9 9 0 1 0 0 18h1a2 2 0 0 0 1.4-3.4 1.5 1.5 0 0 1 1.1-2.6H18a3 3 0 0 0 3-3 9 9 0 0 0-9-9Z"/>
@@ -405,6 +438,10 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 </div>
 <div class="scroll-wrap" id="scrollWrap">
   <div id="viewport" role="list" aria-label="Files"></div>
+  <div id="emptyState" class="empty-state" hidden>
+    <p id="emptyMessage"></p>
+    <button type="button" class="action" id="clearFilter">Clear filter</button>
+  </div>
 </div>
 
 <dialog id="themeDialog" aria-labelledby="themeTitle">
@@ -438,7 +475,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
       <option value="604800" selected>7 days</option><option value="2592000">30 days</option>
       <option value="0">Never</option>
     </select></label>
-    <p>Anyone with this link can access this item. Folder shares include future files.</p>
+    <p id="shareScope">Anyone with this link can access this item. Folder shares include future files.</p>
     <p id="shareMessage" class="message" role="status"></p>
     <label id="linkLabel" hidden>Share link <input id="shareLink" readonly style="width:100%"></label>
     <div class="dialog-actions"><button id="createShare" type="submit">Create link</button><button id="copyShare" type="button" hidden>Copy link</button><button type="button" data-close="shareDialog">Close</button></div>
@@ -482,7 +519,10 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
   }
   function showShare(target) {
     selectedPath = target || '.';
-    document.getElementById('shareTarget').textContent = selectedPath;
+    document.getElementById('shareTarget').textContent = selectedPath === '.' ? 'All files and folders' : selectedPath;
+    document.getElementById('shareScope').textContent = selectedPath === '.'
+      ? 'Anyone with this link can access all files and folders in the served root, including future additions.'
+      : 'Anyone with this link can access this item. Folder shares include future files.';
     document.getElementById('shareMessage').textContent = '';
     document.getElementById('linkLabel').hidden = true;
     document.getElementById('copyShare').hidden = true;
@@ -632,6 +672,8 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
   var statsEl = document.getElementById('stats');
   var theadEl = document.getElementById('thead');
   var breadcrumbsEl = document.getElementById('breadcrumbs');
+  var emptyState = document.getElementById('emptyState');
+  var clearFilter = document.getElementById('clearFilter');
 
   // ---- Sort stack ----
   // Array of {key, asc}. First = primary, second = tiebreaker, etc.
@@ -731,6 +773,8 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     var dir = getDirFromHash();
 
     viewport.style.display = 'none';
+    emptyState.hidden = true;
+    statsEl.textContent = '';
     var loadingEl = document.createElement('div');
     loadingEl.className = 'status';
     loadingEl.textContent = 'Loading\u2026';
@@ -800,6 +844,9 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
       ? filtered.length + ' items'
       : filtered.length + ' / ' + allItems.length + ' items';
 
+    emptyState.hidden = filtered.length !== 0 || invalid;
+    document.getElementById('emptyMessage').textContent = allItems.length ? 'No matching files' : 'This folder is empty';
+    clearFilter.hidden = searchInput.value.length === 0;
     pinnedRow = null;
     viewport.replaceChildren();
     viewport.style.height = filtered.length * rowHeight + 'px';
@@ -809,6 +856,14 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
   // Keep the focused row mounted, including its dialog's return-focus target.
   function renderVisible() {
+    var height = parseFloat(getComputedStyle(viewport).getPropertyValue('--row-height'));
+    if (height !== rowHeight) {
+      var position = scrollWrap.scrollTop / rowHeight;
+      rowHeight = height;
+      viewport.style.height = filtered.length * rowHeight + 'px';
+      viewport.querySelectorAll('.row').forEach(function(row) { row.style.top = Number(row.dataset.index) * rowHeight + 'px'; });
+      scrollWrap.scrollTop = position * rowHeight;
+    }
     var start = Math.max(0, Math.floor(scrollWrap.scrollTop / rowHeight) - OVERSCAN);
     var end = Math.min(filtered.length, Math.ceil((scrollWrap.scrollTop + scrollWrap.clientHeight) / rowHeight) + OVERSCAN);
     viewport.querySelectorAll('.row').forEach(function(row) {
@@ -893,8 +948,8 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
       '<div class="col-date">' + fmtDate(item.mtime) + '</div>';
 
     var copy = document.createElement('button'); copy.className = 'copy-btn'; copy.textContent = '\u2398';
-    copy.title = item.isDir ? 'Copy folder link' : 'Copy link';
-    if (item.isDir) copy.setAttribute('aria-label', 'Copy folder link for ' + item.name);
+    copy.title = isOwner ? 'Copy owner-only link' : item.isDir ? 'Copy folder link' : 'Copy link';
+    copy.setAttribute('aria-label', copy.title + ' for ' + item.name);
     copy.dataset.href = copyHref;
     div.appendChild(copy);
     if (isOwner) {
@@ -957,6 +1012,12 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
       clearTimeout(debounceTimer);
       applyFilterAndSort();
     });
+  });
+  clearFilter.addEventListener('click', function() {
+    clearTimeout(debounceTimer);
+    searchInput.value = '';
+    applyFilterAndSort();
+    searchInput.focus();
   });
   searchInput.addEventListener('input', function() {
     clearTimeout(debounceTimer);

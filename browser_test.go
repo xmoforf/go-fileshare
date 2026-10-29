@@ -17,6 +17,9 @@ func TestBrowserFixture(t *testing.T) {
 		t.Skip("interactive browser fixture")
 	}
 	a, root, _ := fixture(t)
+	if err := os.Mkdir(filepath.Join(root, "empty"), 0700); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.Rename(filepath.Join(root, "folder/sub"), filepath.Join(root, "folder/sub &\"'<>#?%é")); err != nil {
 		t.Fatal(err)
 	}

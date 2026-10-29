@@ -159,8 +159,12 @@ async function checkCompactLayout(page) {
         const center = r => r.top + r.height / 2;
         if (Math.abs(toolbar.top - header.bottom - 4) > 1) failures.push('path row needs 4px gap');
         if (Math.abs(header.height - rect('breadcrumbs').height) > 1) failures.push('path row must be text-height');
-        if (Math.abs(center(search) - center(theme)) > 1 || Math.abs(center(search) - center(stats)) > 1) {
-          failures.push('filter/count/theme must stay on same row');
+        const field = rect('searchField');
+        const modes = rect('searchModes');
+        if (modes.left < search.right || modes.right > field.right || modes.top < field.top || modes.bottom > field.bottom) failures.push('modes must fit inside field after text');
+        if (Math.abs(center(search) - center(modes)) > 1) failures.push('inline modes must align with input');
+        if (innerWidth > 700 && (Math.abs(center(search) - center(theme)) > 1 || Math.abs(center(search) - center(stats)) > 1)) {
+          failures.push('desktop filter/count/theme must stay on same row');
         }
         if (search.width < 120 || theme.width < 36 || theme.height < 36) failures.push('filter and theme targets must remain usable');
         const controls = [...document.querySelectorAll('#search, #stats, .toolbar button')].filter(el => el.getClientRects().length);
@@ -168,14 +172,15 @@ async function checkCompactLayout(page) {
         for (const [i, box] of boxes.entries()) {
           if (box.left < 0 || box.right > innerWidth || box.top < toolbar.top || box.bottom > toolbar.bottom) failures.push('control outside toolbar/viewport');
           if (controls[i].scrollWidth > controls[i].clientWidth) failures.push('clipped control');
-          if (controls[i].tagName === 'BUTTON' && box.height < 36) failures.push('button target shrank');
+          const minimum = matchMedia('(pointer: coarse)').matches ? 44 : controls[i].closest('#searchModes') ? 28 : 36;
+          if (controls[i].tagName === 'BUTTON' && box.height < minimum) failures.push('button target shrank');
           if (innerWidth > 700 && Math.abs(center(box) - center(search)) > 1) failures.push('desktop controls need one row');
           for (const other of boxes.slice(i + 1)) {
             if (box.left < other.right && other.left < box.right && box.top < other.bottom && other.top < box.bottom) failures.push('overlapping controls');
           }
         }
         if (document.documentElement.scrollWidth > innerWidth) failures.push('horizontal overflow');
-        if (toolbar.height > (innerWidth > 700 ? 48 : 140)) failures.push('excess toolbar height');
+        if (toolbar.height > (innerWidth > 700 ? 64 : 160)) failures.push('excess toolbar height');
       }
     } finally {
       breadcrumbs.innerHTML = original;
@@ -199,7 +204,7 @@ async function checkFileFilter(page) {
   const error = page.locator('#filterError');
   const message = 'Invalid regular expression. Fix it or clear the filter to show files.';
   const caseButton = page.getByRole('button', { name: 'Case sensitive', exact: true });
-  const wholeButton = page.getByRole('button', { name: 'Whole string', exact: true });
+  const wholeButton = page.getByRole('button', { name: 'Match phrase', exact: true });
   const regexButton = page.getByRole('button', { name: 'Regular expression', exact: true });
   const buttons = [caseButton, wholeButton, regexButton];
   const labels = ['Aa', '""', '.*'];
@@ -313,4 +318,62 @@ async function checkFileFilter(page) {
   return 'PASS: search modes, independent case, exclusive toggles/highlights, literal whitespace, raw regex, errors and keyboard focus';
 }
 
-if (typeof module !== 'undefined') module.exports = { checkUI, checkShareCopyReset, checkCompactLayout, checkFileFilter };
+async function checkUtilityPolish(page, owner) {
+  function assert(value, message) { if (!value) throw new Error(message); }
+  const search = page.getByLabel('Filter files', { exact: true });
+  const rows = page.locator('#viewport .row');
+  assert(await page.locator('#stats').getAttribute('role') === 'status', 'result count must announce changes');
+  assert(await page.locator('#searchField #searchModes button').count() === 3, 'all advanced toggles remain inside field');
+  await search.focus();
+  assert(await search.evaluate(el => getComputedStyle(el.parentElement).outlineStyle !== 'none'), 'search field needs visible focus outline');
+  await search.fill('no-matching-item');
+  await page.getByText('0 / 208 items', { exact: true }).waitFor({ state: 'visible' });
+  await page.getByText('No matching files', { exact: true }).waitFor({ state: 'visible' });
+  await page.getByRole('button', { name: 'Clear filter', exact: true }).click();
+  await page.getByText('208 items', { exact: true }).waitFor({ state: 'visible' });
+  assert(await search.inputValue() === '' && await search.evaluate(el => el === document.activeElement), 'clear restores results and focus');
+  assert(!await page.locator('#emptyState').isVisible(), 'empty state disappears on recovery');
+  const coarse = await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
+  const geometry = await rows.first().evaluate(row => ({
+    height: row.getBoundingClientRect().height,
+    controls: [...row.querySelectorAll('a, button')].map(el => { const r = el.getBoundingClientRect(); return [r.width, r.height]; }),
+    shareOpacity: row.querySelector('.file-link-action') && getComputedStyle(row.querySelector('.file-link-action')).opacity,
+  }));
+  if (owner) assert(geometry.shareOpacity === '1', 'Share is visible without hover');
+  if (coarse) assert(geometry.height >= 44 && geometry.controls.every(([w, h]) => w >= 44 && h >= 44), 'coarse pointer targets must be at least 44px');
+  await rows.first().locator('a').focus();
+  await page.keyboard.press('End');
+  const last = page.locator('.row[data-index="207"]');
+  assert(await last.locator('a').evaluate(el => el === document.activeElement), 'End reaches last row');
+  assert(Math.abs((await last.evaluate(el => parseFloat(el.style.top))) - 207 * geometry.height) < 1, 'virtual offsets match rendered row height');
+  // Exercise a pointer-metric change without replacing the focused row.
+  const changedHeight = geometry.height + 12;
+  await page.evaluate(height => {
+    document.getElementById('viewport').style.setProperty('--row-height', height + 'px');
+    document.getElementById('scrollWrap').dispatchEvent(new Event('scroll'));
+  }, changedHeight);
+  await page.waitForFunction(height => [...document.querySelectorAll('#viewport .row')].every(row => parseFloat(row.style.top) === Number(row.dataset.index) * height), changedHeight);
+  assert(await last.locator('a').evaluate(el => el === document.activeElement), 'metric changes preserve focused row');
+  await page.evaluate(() => {
+    document.getElementById('viewport').style.removeProperty('--row-height');
+    document.getElementById('scrollWrap').dispatchEvent(new Event('scroll'));
+  });
+  await page.waitForFunction(height => parseFloat(document.querySelector('.row[data-index="207"]').style.top) === 207 * height, geometry.height);
+  await page.keyboard.press('Home');
+  if (owner) {
+    const current = page.url();
+    await page.goto(new URL('/', current).href);
+    await page.locator('#shareCurrent').click();
+    assert(await page.locator('#shareTarget').textContent() === 'All files and folders', 'root target must be explicit');
+    assert((await page.locator('#shareScope').textContent()).includes('all files and folders'), 'root scope warning must be explicit');
+    await page.locator('#shareDialog').getByRole('button', { name: 'Close', exact: true }).click();
+    await page.getByRole('link', { name: /empty$/ }).click();
+    await page.getByText('This folder is empty', { exact: true }).waitFor({ state: 'visible' });
+    assert(!await page.getByRole('button', { name: 'Clear filter', exact: true }).isVisible(), 'empty folder does not suggest clearing absent filter');
+    await page.goto(current);
+    await page.getByText('208 items', { exact: true }).waitFor({ state: 'visible' });
+  }
+  return 'PASS: inline modes, focus, result announcements, empty recovery, visible sharing, root scope and pointer-aware virtualization';
+}
+
+if (typeof module !== 'undefined') module.exports = { checkUI, checkShareCopyReset, checkCompactLayout, checkFileFilter, checkUtilityPolish };

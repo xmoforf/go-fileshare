@@ -6,13 +6,15 @@ Open the server's HTTPS address and log in with the owner account. Recipients op
 
 Open folders by name and use breadcrumbs to go back. **Filter files** searches names in the current directory, not its descendants. By default, every space-separated text term must appear in the name, ignoring case.
 
-Use the filter-bar buttons to change matching:
+Use the always-visible buttons inside the right edge of **Filter files** to change matching:
 
 - **Aa** — case-sensitive matching, independently of the other buttons.
-- **""** — match the query as one literal substring, preserving whitespace; not a whole-word or whole-filename match.
+- **""** (**Match phrase**) — match the query as one literal substring, preserving whitespace; not a whole-word or whole-filename match.
 - **`.*`** — use a regular expression, such as `^report.*\.pdf$`, without surrounding slashes or trailing flags. **Aa** controls case sensitivity.
 
 All buttons start off; enabled buttons are highlighted. **""** and **`.*`** are mutually exclusive. Click an enabled button to turn it off. Invalid regular expressions show an error until corrected, cleared, or regex mode is turned off. The former `/regex/flags` shortcut is no longer recognized; use **`.*`** and remove the delimiters and flags.
+
+If nothing matches, choose **Clear filter** to restore the list and return focus to the input. Matching modes stay selected. An empty folder shows **This folder is empty** instead. Result counts are announced to assistive technology.
 
 Select **Name**, **Size**, or **Modified** to sort; select again to reverse. Earlier sort choices break ties. Filtering and sorting cover the complete directory, including rows outside the visible area. Use the file filter rather than browser Find for offscreen filenames.
 
@@ -23,9 +25,9 @@ Select **Name**, **Size**, or **Modified** to sort; select again to reverse. Ear
 3. Choose **Create link**, then **Copy link**. If clipboard access fails, copy the displayed **Share link** manually.
 4. Open the link in a private browser window to see what the recipient receives.
 
-A file link grants access to that file. A folder link includes its descendants, future additions, and replacements at the same paths. Sharing the root includes the whole served tree.
+A file link grants access to that file. A folder link includes its descendants, future additions, and replacements at the same paths. Sharing the root includes the whole served tree; the dialog identifies this as **All files and folders** before you create the link.
 
-**Copy link** beside a file has a different purpose: in the owner view, it copies an owner-only URL. Use **Share** to grant recipient access. In a shared folder, **Copy link** copies a child URL within the existing share; it does not create a separately revocable link.
+The row copy button is labeled **Copy owner-only link** in the owner view. It copies an address that requires owner login; use the always-visible **Share** action to grant recipient access. In a shared folder, **Copy link** copies a child URL within the existing share; it does not create a separately revocable link.
 
 ## Manage shared links
 
@@ -60,4 +62,4 @@ Themes include Light, Dark, Catppuccin Latte/Frappe/Macchiato/Mocha, Nord, Atom 
 | Home / End on a filename | Move to the first / last entry |
 | Escape in an optional dialog | Close without applying draft changes |
 
-Opening a folder focuses its filter. In the theme list, use arrow keys or type-ahead to select. The login dialog stays open until authentication succeeds.
+Touch layouts use larger row and control targets; desktop layouts keep compact rows. Opening a folder focuses its filter. In the theme list, use arrow keys or type-ahead to select. The login dialog stays open until authentication succeeds.

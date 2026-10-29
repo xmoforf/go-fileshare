@@ -13,7 +13,7 @@ async function checkRenderedContrast(page) {
     };
     const failures = [];
     const modal = document.querySelector('dialog[open]');
-    for (const el of document.querySelectorAll('body, .breadcrumbs a, .stats, .thead button, .row a, .col-size, .col-date, .copy-btn, .action, dialog[open], dialog[open] input, dialog[open] select, dialog[open] button, #themeCurrent, #themeResults, .status')) {
+    for (const el of document.querySelectorAll('body, .breadcrumbs a, .stats, .thead button, .row a, .col-size, .col-date, .copy-btn, .action, #search, #searchModes button, .search-field, dialog[open], dialog[open] input, dialog[open] select, dialog[open] button, #themeCurrent, #themeResults, .status')) {
       if (!el.getClientRects().length || el.disabled || (modal && !modal.contains(el))) continue;
       const style = getComputedStyle(el);
       if (Number(style.opacity) === 0) continue;
@@ -24,7 +24,7 @@ async function checkRenderedContrast(page) {
       const fg = rgb(style.color).map((v, i) => i < 3 ? v * Number(style.opacity) + bg[i] * (1 - Number(style.opacity)) : v);
       const name = el.id || el.className || el.tagName;
       if (ratio(fg, bg) < 4.5) failures.push(name + ': text');
-      if (el.matches('input, select, .action, dialog[open] button') && ratio(rgb(style.borderTopColor), bg) < 3) failures.push(name + ': boundary');
+      if (el.matches('select, .action, .search-field, dialog[open] input, dialog[open] button') && ratio(rgb(style.borderTopColor), bg) < 3) failures.push(name + ': boundary');
       if (el.matches('input') && ratio(rgb(getComputedStyle(el, '::placeholder').color), bg) < 4.5) failures.push(name + ': placeholder');
       if (style.outlineStyle !== 'none' && ratio(rgb(style.outlineColor), bg) < 3) failures.push(name + ': focus');
     }
@@ -100,11 +100,21 @@ async function checkThemes(page) {
     await page.locator('#viewport .copy-btn').first().focus();
     await page.waitForFunction(() => getComputedStyle(document.querySelector('#viewport .copy-btn')).opacity === '1');
     await checkRenderedContrast(page);
+    await page.getByRole('button', { name: 'Case sensitive', exact: true }).click();
+    await page.getByLabel('Filter files', { exact: true }).focus();
+    await checkRenderedContrast(page);
+    await page.getByRole('button', { name: 'Case sensitive', exact: true }).click();
     await trigger.click();
     await search.focus();
     await checkRenderedContrast(page);
     await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
   }
+  // Sample the first frame of a palette change while a row is highlighted.
+  await page.evaluate(() => applyTheme('dark'));
+  await page.locator('#viewport .row').first().hover();
+  await page.evaluate(() => Promise.all(document.getAnimations().map(animation => animation.finished.catch(() => {}))));
+  await page.evaluate(() => applyTheme('light'));
+  await checkRenderedContrast(page);
   await trigger.click();
   await search.fill('no matches');
   await dialog.getByRole('button', { name: 'Use system default', exact: true }).click();

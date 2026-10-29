@@ -26,7 +26,7 @@ nix develop -c npm run test:browser
 
 Playwright browser binaries and their OS libraries must already be available. On a disposable supported runner, `npx playwright install --with-deps chromium firefox webkit` installs them; this changes host packages. Use the pinned container in `.github/workflows/checks.yml` when host package installation is unsuitable.
 
-`npm run test:browser -- --chromium-only` selects the routine CI subset. The runner checks login, navigation/filtering, themes, share creation, recipient access, download, and revocation. It prints `PASS` per engine/viewport and retains screenshots in the printed temporary directory. Missing engines fail the command. Automated checks do not replace visual inspection or assistive-technology testing.
+`npm run test:browser -- --chromium-only` selects the routine CI subset. The runner checks login, inline filter controls, empty-state recovery, themes and contrast, owner/recipient copy labels, root sharing scope, share creation, recipient access, download, and revocation. Narrow contexts emulate touch, checking target sizes and virtual row offsets; this is not real-device testing. It prints `PASS` per engine/viewport and retains screenshots in the printed temporary directory. Missing engines fail the command. Automated checks do not replace visual inspection or assistive-technology testing.
 
 For interactive inspection or documentation capture:
 
