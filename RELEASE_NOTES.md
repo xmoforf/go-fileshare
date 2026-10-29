@@ -1,12 +1,27 @@
 # Release notes
 
-## Unreleased
+## v1.0.4
 
 ### Changes
 
+- Add independent case-sensitive, literal-substring, and regular-expression filter buttons for owner and shared-folder browsers.
+- Compact both browser headers, with an accessible theme palette beside the item count and wrapping controls on narrow screens.
+- Clarify failed-login recovery and show a neutral unavailable-link page directing recipients to the sender.
 - Reorganize documentation into installation, configuration, usage, operations, testing, and release guides.
-- Add a minimal published-image Compose example using shared Caddy proxy networking.
+- Simplify the Compose example to published images and shared Caddy proxy networking; document hardening separately.
 - Show the browser interface and sharing workflow in README media.
+
+### Upgrade
+
+No application state-format or API-format migration is added. Existing shares, expiry times, and revocations retain their meaning. Follow the [update and rollback procedure](docs/operations.md#update-and-roll-back), then reload the browser.
+
+The former `/regex/flags` filter shortcut is no longer recognized. Enable **`.*`**, enter the pattern without delimiters or flags, and use **Aa** for case sensitivity. **""** selects one literal substring; otherwise space-separated terms are matched independently. See [filter controls](docs/usage.md#browse-files).
+
+**Existing Compose installations must not replace their configuration blindly.** The example now uses mutable published images, public Caddy ports, shared proxy networking, different bind paths, and named Caddy volumes, without the former hardening blocks. Preserve credentials, the whole stopped state directory, and certificate storage; deliberately map existing mounts and permissions. Read [existing deployment guidance](docs/compose.md#existing-deployments) before adopting the example.
+
+### Known limitations
+
+Filtering still covers only the current directory. Narrow screens wrap controls; large listings still consume browser memory despite virtualized rows. README media illustrates the sharing workflow but predates the final compact header and filter buttons. No uploads, transcoding, or multi-user permissions are added. HTTPS and public-ingress protections remain operator responsibilities; see [application limits](SECURITY.md#application-limits) and [proxy hardening](docs/hardening.md).
 
 ## v1.0.3
 
