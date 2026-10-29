@@ -4,7 +4,15 @@ Open the server's HTTPS address and log in with the owner account. Recipients op
 
 ## Browse files
 
-Open folders by name and use breadcrumbs to go back. **Filter files** searches names in the current directory, not its descendants. Use space-separated text terms or `/regex/`; matching is case-insensitive. Invalid regular expressions show an error until corrected or cleared.
+Open folders by name and use breadcrumbs to go back. **Filter files** searches names in the current directory, not its descendants. By default, every space-separated text term must appear in the name, ignoring case.
+
+Use the filter-bar buttons to change matching:
+
+- **Aa** — case-sensitive matching, independently of the other buttons.
+- **""** — match the query as one literal substring, preserving whitespace; not a whole-word or whole-filename match.
+- **`.*`** — use a regular expression, such as `^report.*\.pdf$`, without surrounding slashes or trailing flags. **Aa** controls case sensitivity.
+
+All buttons start off; enabled buttons are highlighted. **""** and **`.*`** are mutually exclusive. Click an enabled button to turn it off. Invalid regular expressions show an error until corrected, cleared, or regex mode is turned off. The former `/regex/flags` shortcut is no longer recognized; use **`.*`** and remove the delimiters and flags.
 
 Select **Name**, **Size**, or **Modified** to sort; select again to reverse. Earlier sort choices break ties. Filtering and sorting cover the complete directory, including rows outside the visible area. Use the file filter rather than browser Find for offscreen filenames.
 

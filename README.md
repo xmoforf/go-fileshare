@@ -8,7 +8,7 @@ The browser interface and database are built in. There are no uploads or multi-u
 
 ## Features
 
-- **Browse:** Navigate folders, filter filenames with text or regular expressions, and sort by name, size, or modification time.
+- **Browse:** Navigate folders, [filter filenames](docs/usage.md#browse-files) with case, whole-string, or regex toggles, and sort by name, size, or modification time.
 - **Share:** Create file or folder links with an expiry or no time limit. View and revoke links from the Shares panel.
 - **Download:** Download files with HTTP range support for seeking and resuming in compatible clients.
 - **Customize:** Choose light, dark, or named themes, saved in your browser.

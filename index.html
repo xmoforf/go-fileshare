@@ -206,6 +206,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     flex-wrap: wrap;
     padding-bottom: 8px;
   }
+  .filter { display: flex; gap: 8px; flex: 1; min-width: 0; }
   #search {
     background: var(--bg-input);
     border: 1px solid var(--border);
@@ -329,7 +330,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     .col-date { display: none; }
     .col-size, .row .col-size { width: 70px; font-size: 12px; }
     .row .col-size { font-size: 11px; }
-    #search { flex-basis: 100%; }
+    .filter { flex-basis: 100%; }
     .breadcrumbs { font-size: 0.95em; }
   }
 
@@ -342,6 +343,11 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
   .action, dialog button, dialog select, dialog input {
     color: var(--text); background: var(--bg-input); border: 1px solid var(--text-dim);
     border-radius: 4px; padding: 6px 10px; min-height: 36px;
+  }
+  #searchModes { display: flex; gap: 4px; }
+  #searchModes button { min-width: 36px; padding: 6px; }
+  #searchModes button[aria-pressed="true"] {
+    background: var(--btn-hover-bg); color: var(--accent); border-color: var(--accent);
   }
   button { cursor: pointer; }
   button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -371,7 +377,14 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
   </div>
 </div>
 <div class="toolbar">
-  <input type="text" id="search" aria-label="Filter files" aria-describedby="filterError" placeholder="Filter files... ( /regex/ )" autofocus>
+  <div class="filter">
+    <input type="text" id="search" aria-label="Filter files" aria-describedby="filterError" placeholder="Filter files..." autofocus>
+    <div id="searchModes" role="group" aria-label="Search modes">
+      <button type="button" class="action" id="searchCase" aria-label="Case sensitive" title="Case sensitive" aria-pressed="false">Aa</button>
+      <button type="button" class="action" id="searchWhole" aria-label="Whole string" title="Whole string (including whitespace)" aria-pressed="false">""</button>
+      <button type="button" class="action" id="searchRegex" aria-label="Regular expression" title="Regular expression" aria-pressed="false">.*</button>
+    </div>
+  </div>
   <div class="stats" id="stats"></div>
   <button class="action" id="shareCurrent" hidden>Share folder</button>
   <button class="action" id="manageShares" hidden>Shares</button>
@@ -604,6 +617,9 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
   var viewport = document.getElementById('viewport');
   var rowHeight = parseFloat(getComputedStyle(viewport).getPropertyValue('--row-height'));
   var searchInput = document.getElementById('search');
+  var searchCase = document.getElementById('searchCase');
+  var searchWhole = document.getElementById('searchWhole');
+  var searchRegex = document.getElementById('searchRegex');
   var statsEl = document.getElementById('stats');
   var theadEl = document.getElementById('thead');
   var breadcrumbsEl = document.getElementById('breadcrumbs');
@@ -739,25 +755,22 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
   // ---- Filter + sort ----
   function applyFilterAndSort() {
-    var q = searchInput.value.trim();
-
-    var regexMatch = q.match(/^\/(.+)\/([gimsuy]*)$/);
+    var q = searchInput.value;
+    var caseSensitive = searchCase.getAttribute('aria-pressed') === 'true';
     var regex = null;
     var terms = [];
     var invalid = false;
 
-    if (regexMatch) {
+    if (searchRegex.getAttribute('aria-pressed') === 'true') {
       try {
-        var flags = regexMatch[2] || '';
-        flags = flags.replace(/[gy]/g, '');
-        if (flags.indexOf('i') === -1) flags += 'i';
-        regex = new RegExp(regexMatch[1], flags);
+        regex = new RegExp(q, caseSensitive ? '' : 'i');
       } catch (e) {
         invalid = true;
       }
     } else {
-      q = q.toLowerCase();
-      terms = q ? q.split(/\s+/) : [];
+      if (!caseSensitive) q = q.toLowerCase();
+      terms = searchWhole.getAttribute('aria-pressed') === 'true'
+        ? [q] : (q.trim() ? q.trim().split(/\s+/) : []);
     }
 
     searchInput.setAttribute('aria-invalid', String(invalid));
@@ -768,7 +781,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
       if (invalid) return false;
       if (!regex && terms.length === 0) return true;
       if (regex) return regex.test(item.name);
-      var name = item.name.toLowerCase();
+      var name = caseSensitive ? item.name : item.name.toLowerCase();
       return terms.every(function(t) { return name.indexOf(t) !== -1; });
     });
 
@@ -925,6 +938,17 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
   // ---- Search ----
   var debounceTimer;
+  [searchCase, searchWhole, searchRegex].forEach(function(button) {
+    button.addEventListener('click', function() {
+      if (button !== searchCase) {
+        var other = button === searchWhole ? searchRegex : searchWhole;
+        other.setAttribute('aria-pressed', 'false');
+      }
+      button.setAttribute('aria-pressed', String(button.getAttribute('aria-pressed') !== 'true'));
+      clearTimeout(debounceTimer);
+      applyFilterAndSort();
+    });
+  });
   searchInput.addEventListener('input', function() {
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(applyFilterAndSort, 80);

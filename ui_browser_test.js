@@ -160,10 +160,87 @@ async function checkFileFilter(page) {
   const rows = page.locator('#viewport .row');
   const error = page.locator('#filterError');
   const message = 'Invalid regular expression. Fix it or clear the filter to show files.';
+  const caseButton = page.getByRole('button', { name: 'Case sensitive', exact: true });
+  const wholeButton = page.getByRole('button', { name: 'Whole string', exact: true });
+  const regexButton = page.getByRole('button', { name: 'Regular expression', exact: true });
+  const buttons = [caseButton, wholeButton, regexButton];
+  const labels = ['Aa', '""', '.*'];
+  const inactiveColors = [];
+  assert(await page.locator('.toolbar button[aria-pressed]').count() === 3, 'three search-mode buttons in filter bar');
+  for (let i = 0; i < buttons.length; i++) {
+    assert(await buttons[i].textContent() === labels[i], 'compact search-mode label');
+    assert(await buttons[i].getAttribute('aria-pressed') === 'false', 'search modes start off');
+    inactiveColors.push(await buttons[i].evaluate(el => getComputedStyle(el).backgroundColor));
+  }
+  async function state(expected) {
+    for (let i = 0; i < buttons.length; i++) {
+      assert(await buttons[i].getAttribute('aria-pressed') === String(expected[i]), 'independent case and exclusive matching modes: ' + expected);
+      const color = await buttons[i].evaluate(el => getComputedStyle(el).backgroundColor);
+      assert((color !== inactiveColors[i]) === expected[i], 'only enabled buttons have highlighted background');
+    }
+  }
+  async function matches(query, count) {
+    await search.fill(query);
+    await page.getByText(count === 208 ? '208 items' : count + ' / 208 items', { exact: true }).waitFor({ state: 'visible' });
+    assert(await search.getAttribute('aria-invalid') === 'false', 'valid query clears invalid state');
+  }
+  await matches('  TXT   ITEM-204  ', 1);
+  await matches('/item-204/', 0);
+  await matches('/[/', 0);
+  await matches('item-20[34]', 0);
+  await matches(' \t ', 208);
+
+  // Case toggles independently, using both keyboard activation keys in every mode.
+  for (const [mode, query, count] of [[null, 'ITEM-204', 1], [wholeButton, 'ITEM-204', 1], [regexButton, '^ITEM-20[34]\\.txt$', 2]]) {
+    if (mode) await mode.click();
+    const whole = mode === wholeButton;
+    const regex = mode === regexButton;
+    await state([false, whole, regex]);
+    await matches(query, count);
+    await caseButton.focus();
+    await caseButton.press('Space');
+    await state([true, whole, regex]);
+    await page.getByText('0 / 208 items', { exact: true }).waitFor({ state: 'visible' });
+    await matches(query.toLowerCase(), count);
+    await caseButton.press('Enter');
+    await state([false, whole, regex]);
+    assert(await caseButton.evaluate(el => el === document.activeElement), 'toggle retains keyboard focus');
+    await matches(query, count);
+  }
+  await caseButton.click();
+  await wholeButton.click();
+  await state([true, true, false]);
+  await regexButton.click();
+  await state([true, false, true]);
+  await regexButton.click();
+  await state([true, false, false]);
+  await wholeButton.click();
+  await state([true, true, false]);
+  await wholeButton.click();
+  await state([true, false, false]);
+  await caseButton.click();
+  await state([false, false, false]);
+
+  await matches('txt item-204', 1);
+  await wholeButton.click();
+  await page.getByText('0 / 208 items', { exact: true }).waitFor({ state: 'visible' });
+  await matches('item-204', 1); // Substring, not whole-filename equality.
+  await matches(' #?%é', 1); // Literal regex metacharacters and leading space.
+  await matches('  #?%é', 0);
+  await matches('a ', 1);
+  await matches('a #?%é.txt ', 0);
+  await matches(' ', 2);
+  await matches('', 208);
+  await regexButton.click();
+  await state([false, false, true]);
+  await matches('^item-20[34]\\.txt$', 2);
+  await matches('/item-204/', 0); // No slash delimiter syntax, even in regex mode.
+  await matches('', 208);
+
   for (const [invalid, recovery, count] of [
-    ['/[/', 'ITEM-204', 1],
-    ['/item/ii', '/item-20[34]/giy', 2],
-    ['/(/', '', 208],
+    ['[', 'ITEM-204', 1],
+    ['*', '^item-20[34]\\.txt$', 2],
+    ['(', '', 208],
   ]) {
     await search.focus();
     await search.press('ControlOrMeta+A');
@@ -186,7 +263,16 @@ async function checkFileFilter(page) {
       assert(names.includes('item-204.txt') && (count === 1 || names.includes('item-203.txt')), 'literal and regex preserve case-insensitive matches');
     }
   }
-  return 'PASS: invalid regex feedback, keyboard focus, sorting, literal/regex recovery and reset';
+  await search.fill('[');
+  await page.getByText(message, { exact: true }).waitFor({ state: 'visible' });
+  await regexButton.click();
+  await state([false, false, false]);
+  assert(await error.textContent() === '', 'turning regex off clears error');
+  assert(await rows.count() === 0, 'invalid regex becomes literal text when disabled');
+  await matches('item-204', 1);
+  await checkCompactLayout(page); // Filtered counts must also fit the narrow toolbar.
+  await matches('', 208);
+  return 'PASS: search modes, independent case, exclusive toggles/highlights, literal whitespace, raw regex, errors and keyboard focus';
 }
 
 if (typeof module !== 'undefined') module.exports = { checkUI, checkShareCopyReset, checkCompactLayout, checkFileFilter };
