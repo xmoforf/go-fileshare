@@ -2,14 +2,11 @@
 """Print version-specific notes; --publish creates a Release after both image publications."""
 import argparse
 import json
-import os
 from pathlib import Path
 import re
 import subprocess
 
-from image_release import REGISTRIES, release_tags
-
-REPOSITORY = "xmoforf/go-fileshare"
+from image_release import REGISTRIES, REPOSITORY, checked_release_revision, release_tags
 
 
 def release_notes(version, source):
@@ -63,13 +60,7 @@ def github_api(endpoint, allow_missing=False):
 
 
 def publish(version, notes, directory):
-    revision = os.environ["GITHUB_SHA"]
-    if (os.environ.get("GITHUB_REPOSITORY") != REPOSITORY
-            or os.environ.get("GITHUB_REF") != "refs/tags/" + version
-            or not re.fullmatch(r"[0-9a-f]{40}", revision)):
-        raise ValueError("publication requires the expected repository and version tag")
-    if subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip() != revision:
-        raise ValueError("checkout revision mismatch")
+    revision = checked_release_revision(version)
     reports = [json.loads((directory / ("publication-report-" + registry) / "publication.json").read_text())
                for registry in REGISTRIES]
     body = release_body(version, revision, notes, reports)

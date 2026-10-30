@@ -12,6 +12,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+REPOSITORY = "xmoforf/go-fileshare"
 REGISTRIES = {
     "ghcr.io": ("https://ghcr.io/token", "ghcr.io", "https://ghcr.io/v2/"),
     "docker.io": ("https://auth.docker.io/token", "registry.docker.io", "https://registry-1.docker.io/v2/"),
@@ -120,17 +121,22 @@ def verify_image(info, arch, version, revision):
         raise ValueError("image platform/config/metadata does not match release")
 
 
-def publish(version, directory, registry="ghcr.io"):
-    if registry not in REGISTRIES:
-        raise ValueError("unsupported registry")
-    image = registry + "/xmoforf/go-fileshare"
+def checked_release_revision(version):
     revision = os.environ["GITHUB_SHA"]
-    if (os.environ.get("GITHUB_REPOSITORY") != "xmoforf/go-fileshare"
+    if (os.environ.get("GITHUB_REPOSITORY") != REPOSITORY
             or os.environ.get("GITHUB_REF") != "refs/tags/" + version
             or not re.fullmatch(r"[0-9a-f]{40}", revision)):
         raise ValueError("publication requires the expected repository and version tag")
     if subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip() != revision:
         raise ValueError("checkout revision mismatch")
+    return revision
+
+
+def publish(version, directory, registry="ghcr.io"):
+    if registry not in REGISTRIES:
+        raise ValueError("unsupported registry")
+    image = registry + "/" + REPOSITORY
+    revision = checked_release_revision(version)
     actor, credential = os.environ["REGISTRY_USERNAME"], os.environ["REGISTRY_TOKEN"]
     tags = release_tags(version, registry_tags(actor, credential, registry=registry))
     images = {}

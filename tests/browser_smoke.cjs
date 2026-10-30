@@ -110,6 +110,19 @@ function browserEngines(args) {
   return Object.entries(values['chromium-only'] ? { chromium } : { chromium, firefox, webkit });
 }
 
+async function checkNarrowLayout(page, label, role, work) {
+  const viewport = page.viewportSize();
+  await page.setViewportSize({ width: 320, height: 844 });
+  console.log(label, `${role}-320`, await checkCompactLayout(page));
+  await page.getByLabel('Filter files', { exact: true }).fill('item-204');
+  await page.getByText('1 / 208 items', { exact: true }).waitFor({ state: 'visible' });
+  console.log(label, `${role}-320-filtered`, await checkCompactLayout(page));
+  await page.screenshot({ path: path.join(work, `${label}-${role}-320.png`) });
+  await page.getByLabel('Filter files', { exact: true }).fill('');
+  await page.getByText('208 items', { exact: true }).waitFor({ state: 'visible' });
+  await page.setViewportSize(viewport);
+}
+
 async function main() {
   const engines = browserEngines(process.argv.slice(2));
   const work = fs.mkdtempSync(path.join(os.tmpdir(), 'file-share-browsers-'));
@@ -169,15 +182,7 @@ async function main() {
             console.log(label, await checkShareCopyReset(page));
             console.log(label, await checkCompactLayout(page));
             await page.screenshot({ path: path.join(work, `${label}-owner-header.png`) });
-            await page.setViewportSize({ width: 320, height: 844 });
-            console.log(label, 'owner-320', await checkCompactLayout(page));
-            await page.getByLabel('Filter files', { exact: true }).fill('item-204');
-            await page.getByText('1 / 208 items', { exact: true }).waitFor({ state: 'visible' });
-            console.log(label, 'owner-320-filtered', await checkCompactLayout(page));
-            await page.screenshot({ path: path.join(work, `${label}-owner-320.png`) });
-            await page.getByLabel('Filter files', { exact: true }).fill('');
-            await page.getByText('208 items', { exact: true }).waitFor({ state: 'visible' });
-            await page.setViewportSize(viewport);
+            await checkNarrowLayout(page, label, 'owner', work);
             console.log(label, await checkThemes(page));
             await checkThemeStorage(browser, url, viewport);
             console.log(label, await checkUI(page));
@@ -206,15 +211,7 @@ async function main() {
             console.log(label, 'recipient', await checkFileFilter(guest));
             console.log(label, 'recipient', await checkCompactLayout(guest));
             await guest.screenshot({ path: path.join(work, `${label}-recipient-header.png`) });
-            await guest.setViewportSize({ width: 320, height: 844 });
-            console.log(label, 'recipient-320', await checkCompactLayout(guest));
-            await guest.getByLabel('Filter files', { exact: true }).fill('item-204');
-            await guest.getByText('1 / 208 items', { exact: true }).waitFor({ state: 'visible' });
-            console.log(label, 'recipient-320-filtered', await checkCompactLayout(guest));
-            await guest.screenshot({ path: path.join(work, `${label}-recipient-320.png`) });
-            await guest.getByLabel('Filter files', { exact: true }).fill('');
-            await guest.getByText('208 items', { exact: true }).waitFor({ state: 'visible' });
-            await guest.setViewportSize(viewport);
+            await checkNarrowLayout(guest, label, 'recipient', work);
             console.log(label, 'recipient', await checkThemes(guest));
             await guest.evaluate(() => localStorage.setItem(':theme', '"dark"'));
             await guest.getByRole('button', { name: 'Choose theme', exact: true }).click();

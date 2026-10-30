@@ -164,6 +164,24 @@ class ImageReleaseTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 module.verify_image(altered, "arm64", "v1.0.0", "b" * 40)
 
+    def test_wrong_tag_or_checkout_identity_stops_before_registry(self):
+        module = self.module()
+        env = {"GITHUB_SHA": "b" * 40, "GITHUB_REPOSITORY": "xmoforf/go-fileshare",
+               "GITHUB_REF": "refs/tags/v1.0.0"}
+        for changes, checkout in [({"GITHUB_REPOSITORY": "other/project"}, "b" * 40),
+                                  ({"GITHUB_REF": "refs/heads/main"}, "b" * 40),
+                                  ({"GITHUB_SHA": "invalid"}, "b" * 40),
+                                  ({"GITHUB_SHA": None}, "b" * 40), ({}, "c" * 40)]:
+            values = {key: value for key, value in (env | changes).items() if value is not None}
+            with self.subTest(changes=changes, checkout=checkout), patch.dict(os.environ, values, clear=True), \
+                    patch.object(module.subprocess, "check_output", return_value=checkout), \
+                    patch.object(module, "registry_tags", side_effect=AssertionError("identity must precede registry access")) as registry, \
+                    patch.object(module.subprocess, "run") as run:
+                with self.assertRaises((ValueError, KeyError)):
+                    module.publish("v1.0.0", Path("unused"))
+                registry.assert_not_called()
+                run.assert_not_called()
+
     def test_existing_release_stops_before_writes(self):
         module = self.module()
         env = {"GITHUB_SHA": "b" * 40, "GITHUB_REPOSITORY": "xmoforf/go-fileshare",

@@ -6,19 +6,18 @@ import io
 import json
 import os
 from pathlib import Path
-import re
 import shutil
 import subprocess
 import tarfile
 import tempfile
 
+from image_release import release_tags
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def validate_version(value):
-    number = r"(?:0|[1-9][0-9]*)"
-    if not re.fullmatch(rf"v{number}\.{number}\.{number}(?:-[a-zA-Z0-9][a-zA-Z0-9.-]*)?", value):
-        raise ValueError("version must be vMAJOR.MINOR.PATCH with optional prerelease suffix")
+    release_tags(value, [])
     return value
 
 

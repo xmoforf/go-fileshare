@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -79,6 +80,18 @@ func create(t *testing.T, a *app, cookie, path string, seconds int64) share {
 	}
 	return s
 }
+func TestTokenFormat(t *testing.T) {
+	a, _, _ := fixture(t)
+	cookie := login(t, a)
+	_, sessionID, _ := strings.Cut(cookie, "=")
+	for _, id := range []string{sessionID, create(t, a, cookie, "folder", 0).Token} {
+		decoded, err := base64.RawURLEncoding.DecodeString(id)
+		if err != nil || len(id) != 43 || len(decoded) != 32 {
+			t.Fatal("session and share tokens must encode 32 bytes as unpadded base64url")
+		}
+	}
+}
+
 func TestOwnerAndCSRF(t *testing.T) {
 	a, _, _ := fixture(t)
 	for _, p := range []string{"/api/list", "/api/shares", "/files/outside.txt"} {

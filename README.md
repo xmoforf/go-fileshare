@@ -53,6 +53,7 @@ The application runs as a single binary with no external database server or runt
 - [Security](SECURITY.md) — security boundaries and deployment hardening.
 - [Contributing](CONTRIBUTING.md) — development and testing.
 - [Release notes](RELEASE_NOTES.md) — version changes and upgrade information.
+- [Release procedures](docs/releases.md) — local packaging and publication, with shared strict version validation.
 
 ## License
 

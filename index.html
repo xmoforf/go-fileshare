@@ -298,9 +298,8 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .row .col-name { flex: 1; min-width: 0; height: 100%; }
-  .row .col-size { width: 110px; text-align: right; color: var(--text-dim); font-size: 13px; flex-shrink: 0; }
-  .row .col-date { width: 180px; text-align: right; color: var(--text-dim); font-size: 13px; flex-shrink: 0; }
+  .row .col-name { min-width: 0; height: 100%; }
+  .row .col-size, .row .col-date { color: var(--text-dim); font-size: 13px; flex-shrink: 0; }
 
   /* ---- Copy button ---- */
   .copy-btn {

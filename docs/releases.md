@@ -9,7 +9,7 @@ For maintainers publishing container images or building local binary archives. I
 3. Verify bundled notices and artifact identities. Rehearse old/new binaries when claiming cross-version compatibility.
 4. Obtain approval for the exact version-tag push and its GHCR/Docker Hub **and GitHub Release** publication effects. Branch pushes remain check-only; deployment is separate.
 
-Release tags use `vMAJOR.MINOR.PATCH` with an optional prerelease suffix. Build metadata, numeric prerelease identifiers with leading zeros, malformed tags, and Docker-overlength tags are rejected. Validate without publishing using `python3 scripts/image_release.py v1.0.4`; preview the exact notes section with `python3 scripts/github_release.py v1.0.4`. The workflow validates both before any registry publication.
+Local packaging and publication use the same version policy: `vMAJOR.MINOR.PATCH` with an optional prerelease suffix. Build metadata, numeric prerelease identifiers with leading zeros, malformed tags, and Docker-overlength tags are rejected. The local packager validates the version before running commands or creating output. Validate without publishing using `python3 scripts/image_release.py v1.0.4`; preview the exact notes section with `python3 scripts/github_release.py v1.0.4`. The workflow validates both before any registry publication.
 
 ## Build and verify
 

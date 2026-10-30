@@ -88,12 +88,10 @@ func (a *app) shareRoot(s share) (*os.Root, error) {
 	// Keep the literal /. (not path.Join) to reject FIFOs without blocking.
 	return a.root.OpenRoot(name + "/.")
 }
-func token() (string, error) {
+func token() string {
 	b := make([]byte, 32)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-	return base64.RawURLEncoding.EncodeToString(b), nil
+	rand.Read(b)
+	return base64.RawURLEncoding.EncodeToString(b)
 }
 func jsonResponse(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
@@ -237,11 +235,7 @@ func (a *app) login(w http.ResponseWriter, r *http.Request) {
 		fail(w, 401)
 		return
 	}
-	id, err := token()
-	if err != nil {
-		fail(w, 500)
-		return
-	}
+	id := token()
 	a.mu.Lock()
 	for k, s := range a.sessions {
 		if !now.Before(s.expires) {
@@ -321,11 +315,7 @@ func (a *app) shares(w http.ResponseWriter, r *http.Request) {
 			fail(w, 400)
 			return
 		}
-		id, err := token()
-		if err != nil {
-			fail(w, 500)
-			return
-		}
+		id := token()
 		s := share{Token: id, Path: name, Directory: info.IsDir()}
 		if in.Seconds > 0 {
 			s.Expires = a.now().Unix() + in.Seconds
