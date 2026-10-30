@@ -2,6 +2,14 @@
 
 Use temporary synthetic content and credentials. Run commands from the repository root. Keep results tied to the tested commit and distinguish local checks from deployment or native-architecture verification.
 
+## Coverage policy
+
+Reuse the existing tests and standard tooling. Test application contracts affected by a change; add coverage for concrete risks or regressions, not every conceivable device or operating system. Standard-library and platform behavior need no duplicate test suite, but our integration, authorization and filesystem confinement still need targeted regression and negative tests.
+
+Existing checks below remain the baseline for their stated scope. Browser automation, responsive geometry and keyboard checks do not imply a physical-device matrix or mandatory manual screen-reader signoff. Use those additional checks when a change or reported problem warrants them; untested optional combinations are not release blockers. Keep local verification separate from release evidence, and never present a skipped required gate as optional.
+
+Portability uses the same application contracts and existing toolchain. Add target coverage when explicitly adding support or investigating a platform-specific defect, not as a prerequisite for unrelated work. Cross-compilation proves build compatibility, not runtime correctness. This policy adds no platform commitment or CI gate.
+
 ## Go checks
 
 Run for application changes:
