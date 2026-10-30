@@ -4,7 +4,7 @@ Run the published application image behind Caddy. The repository-root stack and 
 
 ## Requirements
 
-- Linux 5.6+ with working `openat2`, Docker Engine, and Docker Compose V2 or newer.
+- Linux, Docker Engine, and Docker Compose V2 or newer.
 - A hostname pointing to the host, with public TCP ports 80/443 and UDP port 443 available for Caddy. UDP 443 enables HTTP/3; TCP serves HTTP/1.1 and HTTP/2.
 - A directory of files to serve.
 

@@ -22,6 +22,20 @@ nix flake check
 
 `check-go.sh` runs module verification, Go race tests/vet, and Python contracts. A successful run exits 0. Nix builds the static package and tests the host NixOS service; the VM check needs a VM-capable Linux builder (KVM preferred, slower QEMU TCG fallback available).
 
+## Portability checks
+
+The filesystem regressions in `scope_test.go` cover internal/escaping links, link metadata, live anchor replacement and restart, single-file restrictions, and bounded FIFO rejection. Resource tests remain enabled on Unix; only the `/proc/self/fd` leak assertion is Linux-specific.
+
+For an explicitly scoped portability check, compile the app and tests without running foreign binaries. For example, from `nix develop`:
+
+```sh
+out=$(mktemp -d)
+GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -mod=readonly -o "$out/file-share" .
+GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go test -mod=readonly -c -o "$out/file-share.test" .
+```
+
+The `os.Root` refactor was cross-compiled for Darwin, FreeBSD and OpenBSD on amd64/arm64, and NetBSD on amd64. These are build checks, not native runtime tests or new support commitments. Linux packaging and CI remain unchanged; Windows is outside scope.
+
 ## Browser checks
 
 For UI changes, install the pinned test dependencies and run all browser engines at desktop and narrow sizes:
@@ -64,7 +78,7 @@ python3 tests/operations_smoke.py result/bin/file-share
 python3 tests/operations_smoke.py /path/to/old-file-share --candidate /path/to/candidate
 ```
 
-Run as non-root with Python 3 and working `openat2`. The rehearsal uses loopback, synthetic data, and private temporary state; it prints and retains its evidence directory. It tests process/API behavior, not public HTTPS. Two builds of the same revision do not prove cross-version state compatibility. Do not use Python optimization flags or `PYTHONOPTIMIZE`: these checks depend on assertions and reject optimization.
+Run as non-root on Linux with Python 3. The rehearsal uses loopback, synthetic data, and private temporary state; it prints and retains its evidence directory. It tests process/API behavior, not public HTTPS. Two builds of the same revision do not prove cross-version state compatibility. Do not use Python optimization flags or `PYTHONOPTIMIZE`: these checks depend on assertions and reject optimization.
 
 ## Resource and vulnerability checks
 

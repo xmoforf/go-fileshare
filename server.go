@@ -14,13 +14,12 @@ import (
 	"net/url"
 	"os"
 	"path"
-	"runtime"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
-	"golang.org/x/sys/unix"
 	_ "modernc.org/sqlite"
 )
 
@@ -32,7 +31,7 @@ type share struct {
 }
 type session struct{ expires time.Time }
 type app struct {
-	root                           *os.File
+	root                           *os.Root
 	db                             *sql.DB
 	username, passwordHash, origin string
 	ui                             []byte
@@ -54,20 +53,13 @@ func newApp(root, database, username, hash, origin string, ui []byte) (*app, err
 	if _, err := bcrypt.Cost([]byte(hash)); err != nil {
 		return nil, errors.New("valid bcrypt password hash required")
 	}
-	r, err := os.Open(root)
+	if root == "" {
+		return nil, errors.New("root must be a directory")
+	}
+	// Literal /. forces directory traversal before opening, so FIFOs cannot block.
+	r, err := os.OpenRoot(root + "/.")
 	if err != nil {
 		return nil, err
-	}
-	probe, err := openBeneath(r, ".")
-	if err != nil {
-		r.Close()
-		return nil, errors.New("root requires Linux openat2 support")
-	}
-	info, err := probe.Stat()
-	probe.Close()
-	if err != nil || !info.IsDir() {
-		r.Close()
-		return nil, errors.New("root must be a directory")
 	}
 	db, err := sql.Open("sqlite", database)
 	if err != nil {
@@ -84,17 +76,17 @@ func newApp(root, database, username, hash, origin string, ui []byte) (*app, err
 }
 func (a *app) close() { a.db.Close(); a.root.Close() }
 
-// Linux openat2 rejects symlinks in every component atomically, including replaced share anchors.
-func openBeneath(root *os.File, name string) (*os.File, error) {
-	fd, err := unix.Openat2(int(root.Fd()), name, &unix.OpenHow{
-		Flags:   unix.O_RDONLY | unix.O_CLOEXEC | unix.O_NONBLOCK,
-		Resolve: unix.RESOLVE_BENEATH | unix.RESOLVE_NO_SYMLINKS,
-	})
-	runtime.KeepAlive(root)
-	if err != nil {
-		return nil, err
+func openBeneath(root *os.Root, name string) (*os.File, error) {
+	// Open without waiting for a FIFO writer; callers reject non-regular files before reading.
+	return root.OpenFile(name, os.O_RDONLY|syscall.O_NONBLOCK, 0)
+}
+func (a *app) shareRoot(s share) (*os.Root, error) {
+	name := s.Path
+	if !s.Directory {
+		name = path.Dir(name)
 	}
-	return os.NewFile(uintptr(fd), name), nil
+	// Keep the literal /. (not path.Join) to reject FIFOs without blocking.
+	return a.root.OpenRoot(name + "/.")
 }
 func token() (string, error) {
 	b := make([]byte, 32)
@@ -302,14 +294,30 @@ func (a *app) shares(w http.ResponseWriter, r *http.Request) {
 			fail(w, 400)
 			return
 		}
-		f, err := openBeneath(a.root, name)
+		info, err := a.root.Stat(name)
+		if err != nil || (!info.IsDir() && !info.Mode().IsRegular()) {
+			fail(w, 400)
+			return
+		}
+		directory := info.IsDir()
+		root, err := a.shareRoot(share{Path: name, Directory: directory})
 		if err != nil {
 			fail(w, 400)
 			return
 		}
-		info, err := f.Stat()
+		defer root.Close()
+		leaf := path.Base(name)
+		if directory {
+			leaf = "."
+		}
+		f, err := openBeneath(root, leaf)
+		if err != nil {
+			fail(w, 400)
+			return
+		}
+		info, err = f.Stat()
 		f.Close()
-		if err != nil || (!info.IsDir() && !info.Mode().IsRegular()) {
+		if err != nil || info.IsDir() != directory || (!info.IsDir() && !info.Mode().IsRegular()) {
 			fail(w, 400)
 			return
 		}
@@ -362,7 +370,7 @@ func (a *app) list(w http.ResponseWriter, r *http.Request) {
 			fail(w, 404)
 			return
 		}
-		root, err = openBeneath(a.root, s.Path)
+		root, err = a.shareRoot(s)
 		if err != nil {
 			fail(w, 404)
 			return
@@ -403,25 +411,24 @@ func (a *app) list(w http.ResponseWriter, r *http.Request) {
 			if r.Context().Err() != nil {
 				return
 			}
-			// Symlinks and special files are omitted; regular descendants stay predictable.
-			var info unix.Stat_t
-			if unix.Fstatat(int(f.Fd()), e.Name(), &info, unix.AT_SYMLINK_NOFOLLOW) != nil {
+			info, err := e.Info()
+			if err == nil && info.Mode()&os.ModeSymlink != 0 {
+				// Resolve against the share, not this subdirectory or the global root.
+				info, err = root.Stat(path.Join(name, e.Name()))
+			}
+			if err != nil || (!info.IsDir() && !info.Mode().IsRegular()) {
 				continue
 			}
 			kind := "file"
-			switch info.Mode & unix.S_IFMT {
-			case unix.S_IFDIR:
+			if info.IsDir() {
 				kind = "directory"
-			case unix.S_IFREG:
-			default:
-				continue
 			}
 			if !first {
 				if _, err := io.WriteString(w, ","); err != nil {
 					return
 				}
 			}
-			if err := encoder.Encode(entry{e.Name(), kind, info.Size, time.Unix(info.Mtim.Sec, info.Mtim.Nsec).UTC()}); err != nil {
+			if err := encoder.Encode(entry{e.Name(), kind, info.Size(), info.ModTime().UTC()}); err != nil {
 				return
 			}
 			first = false
@@ -466,15 +473,18 @@ func (a *app) shared(w http.ResponseWriter, r *http.Request) {
 			fail(w, 404)
 			return
 		}
-		a.file(w, r, a.root, s.Path)
-		return
+		name = path.Base(s.Path)
 	}
-	root, err := openBeneath(a.root, s.Path)
+	root, err := a.shareRoot(s)
 	if err != nil {
 		fail(w, 404)
 		return
 	}
 	defer root.Close()
+	if !s.Directory {
+		a.file(w, r, root, name)
+		return
+	}
 	f, err := openBeneath(root, name)
 	if err != nil {
 		fail(w, 404)
@@ -507,7 +517,7 @@ func escapePath(p string) string {
 	}
 	return strings.Join(parts, "/")
 }
-func (a *app) file(w http.ResponseWriter, r *http.Request, root *os.File, name string) {
+func (a *app) file(w http.ResponseWriter, r *http.Request, root *os.Root, name string) {
 	f, err := openBeneath(root, name)
 	if err != nil {
 		fail(w, 404)

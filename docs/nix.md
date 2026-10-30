@@ -4,7 +4,7 @@ Nix provides a pinned build without requiring Go on the host. The resulting bina
 
 ## Requirements
 
-- Linux 5.6+ with working `openat2`.
+- A compatible Linux runtime.
 - Nix with flakes enabled and a source checkout.
 - An x86_64-linux or aarch64-linux build host, or a suitable configured builder.
 

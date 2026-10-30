@@ -25,7 +25,7 @@ Select **Name**, **Size**, or **Modified** to sort; select again to reverse. Ear
 3. Choose **Create link**, then **Copy link**. If clipboard access fails, copy the displayed **Share link** manually.
 4. Open the link in a private browser window to see what the recipient receives.
 
-A file link grants access to that file. A folder link includes its descendants, future additions, and replacements at the same paths. Sharing the root includes the whole served tree; the dialog identifies this as **All files and folders** before you create the link.
+A file link grants access through its saved basename, without sibling browsing. A folder link includes its descendants, future additions, and replacements at the same paths. Paths are live references: trusted filesystem writers can retarget existing shares. Relative symlinks must stay within the applicable folder or file-parent boundary; see [filesystem boundaries](../SECURITY.md#filesystem-boundaries). Sharing the root includes the whole served tree; the dialog identifies this as **All files and folders** before you create the link.
 
 The row copy button is labeled **Copy owner-only link** in the owner view. It copies an address that requires owner login; use the always-visible **Share** action to grant recipient access. In a shared folder, **Copy link** copies a child URL within the existing share; it does not create a separately revocable link.
 

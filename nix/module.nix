@@ -73,7 +73,7 @@ in {
         NoNewPrivileges = true;
         CapabilityBoundingSet = "";
         RestrictAddressFamilies = [ "AF_UNIX" "AF_INET" "AF_INET6" ];
-        # RestrictSUIDSGID blocks mandatory openat2 on systemd 257.
+        # Retain the tested sandbox; any additional syscall filtering needs separate validation.
         LockPersonality = true;
       };
     };

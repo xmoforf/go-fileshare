@@ -1,4 +1,3 @@
-# Research: https://man7.org/linux/man-pages/man2/openat2.2.html — Linux no-symlink confinement.
 FROM golang:1.27.3-alpine AS build
 WORKDIR /src
 COPY go.mod go.sum ./

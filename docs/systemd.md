@@ -4,7 +4,7 @@ Run file-share as a dedicated Linux service with persistent state in `/var/lib/f
 
 ## Requirements
 
-- Linux 5.6+ with working `openat2` and systemd.
+- Linux with systemd.
 - A binary for the host architecture, plus `dist/file-share.service` and license notices from the same revision.
 - An HTTPS reverse proxy.
 

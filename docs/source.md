@@ -4,9 +4,11 @@ Build a single binary containing the browser interface and SQLite support. Go is
 
 ## Requirements
 
-- Linux 5.6+ with working `openat2` to run the server.
+- Linux for the supported runtime and installation paths.
 - Go compatible with `go.mod` (currently 1.27.3).
 - A source checkout and network access to download dependencies.
+
+Confinement uses Go `os.Root`, not Linux `openat2`. Selected Darwin/BSD cross-builds are checked as described in [testing](testing.md#portability-checks); native runtime support is not claimed. Unix `O_NONBLOCK` and SIGTERM remain; Windows is not supported.
 
 No C compiler is needed for this build. Use the matching Linux amd64 or arm64 architecture. For an offline build, prepare dependencies with `go mod vendor` on a connected machine and transfer source plus `vendor/`; use `-mod=vendor` below.
 

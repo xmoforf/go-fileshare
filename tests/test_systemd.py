@@ -29,7 +29,7 @@ class SystemdContract(unittest.TestCase):
             "Restart": "on-failure",
         }.items():
             self.assertEqual(service[key], value, key)
-        # systemd 257 implements this filter by rejecting mandatory openat2 with ENOSYS.
+        # Preserve the tested sandbox; changes to syscall filters need separate validation.
         self.assertNotEqual(service.get("RestrictSUIDSGID", "false"), "true")
         self.assertGreater(int(service["TimeoutStopSec"]), 30)
         self.assertEqual(unit["Install"]["WantedBy"], "multi-user.target")

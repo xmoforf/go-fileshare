@@ -23,11 +23,11 @@ The browser interface and database are built in. There are no uploads or multi-u
 
 </details>
 
-Folder links include new files added to the shared folder. Revoking a link stops new requests; downloads already underway may finish.
+Folder links include new files added to the shared folder. Shared paths are live references: trusted filesystem writers can replace or retarget them. Relative symlinks work within the applicable folder or file-parent boundary; absolute and escaping links are rejected. See [filesystem boundaries](SECURITY.md#filesystem-boundaries). Revoking a link stops new requests; downloads already underway may finish.
 
 ## Requirements
 
-- Linux 5.6 or newer with `openat2` available, including inside containers.
+- Linux for the supported packages and installation guides.
 - A reverse proxy providing HTTPS.
 - Read access to your files and writable storage for the database.
 

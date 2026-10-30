@@ -101,12 +101,12 @@ If verification fails, stop the application and retain the failed candidate/curr
 
 | Symptom | Check |
 |---|---|
-| Startup fails | Valid auth JSON/bcrypt, readable root, writable state, working `openat2`, and service sandbox paths |
+| Startup fails | Valid auth JSON/bcrypt, readable directory root, writable state, and service sandbox paths |
 | Readiness passes, login fails | Trusted HTTPS, exact origin/port, credentials, and browser cookies |
 | 403 on writes | Proxy preserves Origin and `X-Requested-With`; use the supported UI |
 | 429 on login | Wait at least one minute; the global login budget is shared |
 | Missing shares after update | Stop and check database path, mounts, and ownership before creating new links |
-| Link unavailable | Expiry, revocation, moved paths, permissions, or symlinks |
+| Link unavailable | Expiry, revocation, moved paths, permissions, or rejected symlink targets ([boundaries](../SECURITY.md#filesystem-boundaries)) |
 | Playback or seeking fails | [Client format support](usage.md#open-shared-links), link expiry, and proxy range handling |
 | Long downloads stop | Restart deadline, proxy response timeout, storage, or resource exhaustion |
 

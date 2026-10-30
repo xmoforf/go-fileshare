@@ -4,7 +4,7 @@ The flake exports `nixosModules.default` and `services.file-share`. The module c
 
 ## Requirements
 
-- NixOS on x86_64-linux or aarch64-linux with working `openat2`.
+- NixOS on x86_64-linux or aarch64-linux.
 - A flake-based host configuration and an HTTPS reverse proxy.
 
 ## Install

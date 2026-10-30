@@ -12,13 +12,23 @@ File-share is a single-owner, read-only service. The host administrator, owner, 
 
 | Boundary | Behavior |
 |---|---|
-| Filesystem | Linux `openat2` confines access beneath the root/share anchor and rejects symlinks. Only regular files and directories are served. Trusted writers can still replace content or add hard links and mounts. |
+| Filesystem | Go `os.Root` confines paths to the applicable root and allows relative symlinks within it. Only regular files and directories are served. Saved paths are live references, not pinned objects; trusted writers can replace or retarget content, or add hard links and mounts. |
 | Owner | Bcrypt password verification; Secure, HttpOnly, SameSite=Strict, host-only cookies. Browser writes require the exact HTTPS Origin and `X-Requested-With: file-share`. |
 | Recipients | Random 256-bit bearer links grant access to a file or live folder subtree. Anyone with a link can forward it. Expiry/revocation applies to new requests, not downloaded copies or transfers already underway. |
 | Content | Active/unknown content downloads as attachments. File responses use sandbox CSP and `nosniff`; responses use no-store/no-referrer. No malware scanning or transcoding is provided. |
 | State | SQLite stores share tokens and permissions. Restarting or changing credentials clears owner sessions, not shares. Restoring older state can restore revoked links. |
 
 The CLI generates cost-12 bcrypt hashes from passwords of 12–72 bytes. Imported higher-cost hashes increase login work; bcrypt is not cancelable once verification starts. Credentials are read at startup and are not rewritten automatically.
+
+## Filesystem boundaries
+
+Owner browsing uses the configured root. Each folder-token request reopens its saved folder beneath that root, then confines navigation and link resolution to the reopened folder. A single-file token reopens its saved parent directory beneath the configured root and permits only its fixed basename, not sibling navigation or listings. Creation checks the same boundary as access; a file link that escapes its parent cannot be shared individually even if the owner can read it.
+
+Relative symlinks must resolve without leaving the applicable root. Absolute links (even those pointing inside), escaping links, broken links and loops are rejected or omitted from listings. Allowed links appear with target metadata. Concurrent changes are not a snapshot.
+
+Saved paths are resolved anew, including after restart. Trusted writers can redirect a saved folder or ancestor to another directory within the configured tree, changing what an existing token exposes. Replacing a shared folder with a relative link to the configured root can expose that entire tree. A shared file's basename can likewise become a link to another file within its reopened parent. Revoke affected tokens before making changes that should not reach existing recipients. Root confinement does not prevent hard links, mounts or malicious changes by trusted writers.
+
+File opens use Unix `O_NONBLOCK` so FIFOs can be rejected without waiting for a writer; this is not a general device or slow-filesystem sandbox. Packaging and runtime support remain Linux; cross-compilation alone does not establish support for other Unix systems or Windows.
 
 ## Deployment hardening
 

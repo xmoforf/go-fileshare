@@ -33,7 +33,9 @@ Keep served content, credentials, database state, and backups in separate locati
 | Credentials file | Read |
 | State directory | Read/write, including SQLite journal files |
 
-Only regular files and directories are served. Symlinks are rejected. A missing database is initialized automatically, so keep its path stable when updating or restoring an installation.
+Only regular files and directories are served. Relative symlinks are allowed within the applicable root: the configured tree for owner access, the reopened shared folder for folder tokens, or the reopened parent directory for single-file tokens. Absolute and escaping links are rejected. Saved paths are live references; trusted writers can replace or retarget them, including across restart. See [filesystem boundaries](../SECURITY.md#filesystem-boundaries).
+
+A missing database is initialized automatically, so keep its path stable when updating or restoring an installation.
 
 ## Owner account
 

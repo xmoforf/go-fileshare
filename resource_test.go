@@ -358,14 +358,16 @@ func TestResourceStalledTransfers(t *testing.T) {
 			t.Fatal("disconnect did not release handler")
 		}
 	}
-	fds, err := os.ReadDir("/proc/self/fd")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, fd := range fds {
-		if target, _ := os.Readlink("/proc/self/fd/" + fd.Name()); target == name {
-			t.Fatal("download file descriptor leaked")
+	if runtime.GOOS == "linux" {
+		fds, err := os.ReadDir("/proc/self/fd")
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, fd := range fds {
+			if target, _ := os.Readlink("/proc/self/fd/" + fd.Name()); target == name {
+				t.Fatal("download file descriptor leaked")
+			}
 		}
 	}
-	t.Log("control requests responsive while stalled; all 8 handlers/files released on disconnect")
+	t.Log("control requests responsive while stalled; all 8 handlers released on disconnect (file descriptor check Linux-only)")
 }
