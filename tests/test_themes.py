@@ -49,9 +49,7 @@ class ThemeTests(unittest.TestCase):
         self.assertTrue(self.ui.catalog, "missing bundled theme catalog")
         themes = json.loads(self.ui.catalog)
         self.assertEqual(set(themes), {
-            "light", "dark", "catppuccin-latte", "catppuccin-frappe",
-            "catppuccin-macchiato", "catppuccin-mocha", "nord",
-            "atom-one-dark", "atom-one-light", "rose-pine", "rose-pine-moon", "rose-pine-dawn",
+            "light", "catppuccin-mocha", "nord", "rose-pine", "rose-pine-dawn",
         })
         self.assertEqual(contrast("#000000", "#ffffff"), 21)
         self.assertEqual(contrast("#123456", "#123456"), 1)
@@ -78,7 +76,9 @@ class ThemeTests(unittest.TestCase):
         provenance = ROOT / "licenses/themes/provenance.json"
         self.assertTrue(provenance.exists(), "missing palette provenance")
         inventory = json.loads(provenance.read_text())
-        self.assertEqual(len(inventory["themes"]), 10)
+        self.assertEqual({theme["id"] for theme in inventory["themes"]}, {
+            "catppuccin-mocha", "nord", "rose-pine", "rose-pine-dawn",
+        })
         comments = "\n".join(self.ui.comments)
         for source in inventory["sources"]:
             self.assertRegex(source["revision"], r"^[0-9a-f]{40}$")

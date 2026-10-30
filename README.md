@@ -11,7 +11,7 @@ The browser interface and database are built in. There are no uploads or multi-u
 - **Browse:** Navigate folders, [filter filenames](docs/usage.md#browse-files) with always-visible inline case, phrase, or regex toggles, and sort by name, size, or modification time.
 - **Share:** Create recipient file or folder links with an expiry or no time limit; owner-only copy links are labeled separately. View and revoke links from the Shares panel.
 - **Download:** Download files with HTTP range support for seeking and resuming in compatible clients.
-- **Customize:** Choose light, dark, or named themes, saved in your browser.
+- **Customize:** Choose Light, Nord, Catppuccin Mocha, Rose Pine, or Rose Pine Dawn; one browser cookie shares your choice across owner and shared-folder pages on the same host.
 - **Navigate:** Use keyboard controls and a layout that adapts to smaller screens.
 
 <details>
@@ -27,7 +27,7 @@ Folder links include new files added to the shared folder. Shared paths are live
 
 ## Requirements
 
-- Linux for the supported packages and installation guides.
+- Linux for the supported runtime, packages, and installation guides. Windows is not supported or tested.
 - A reverse proxy providing HTTPS.
 - Read access to your files and writable storage for the database.
 

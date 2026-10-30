@@ -154,8 +154,8 @@ async function main() {
         for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 }]) {
           const label = `${engine}-${viewport.width}`;
           // Certificate exception is confined to this synthetic loopback context.
-          const owner = await browser.newContext({ ignoreHTTPSErrors: true, viewport, hasTouch: viewport.width < 700 });
-          const recipient = await browser.newContext({ ignoreHTTPSErrors: true, viewport, hasTouch: viewport.width < 700 });
+          const owner = await browser.newContext({ ignoreHTTPSErrors: true, viewport, colorScheme: 'light', hasTouch: viewport.width < 700 });
+          const recipient = await browser.newContext({ ignoreHTTPSErrors: true, viewport, colorScheme: 'light', hasTouch: viewport.width < 700 });
           try {
             const page = await owner.newPage();
             page.setDefaultTimeout(10000);
@@ -201,8 +201,16 @@ async function main() {
             const share = await link.inputValue();
             assert.equal(new URL(share).origin, url);
             await page.locator('#shareDialog').getByRole('button', { name: 'Close', exact: true }).click();
+            await page.getByRole('button', { name: 'Choose theme', exact: true }).click();
+            await page.getByLabel('Theme', { exact: true }).selectOption('catppuccin-mocha');
+            await page.getByRole('button', { name: 'Apply', exact: true }).click();
+            const sameProfile = await owner.newPage();
+            await sameProfile.goto(share);
+            assert.equal(await sameProfile.locator('html').getAttribute('data-theme'), 'catppuccin-mocha', 'root preference crosses into share path');
+            await sameProfile.close();
             const guest = await recipient.newPage();
             await guest.goto(share);
+            assert.equal(await guest.locator('html').getAttribute('data-theme'), 'light', 'other profile does not inherit owner theme');
             await guest.getByText('208 items', { exact: true }).waitFor({ state: 'visible' });
             assert.equal(await guest.locator('#shareCurrent').isVisible(), false);
             assert.equal(await guest.locator('#manageShares').isVisible(), false);
@@ -213,13 +221,23 @@ async function main() {
             await guest.screenshot({ path: path.join(work, `${label}-recipient-header.png`) });
             await checkNarrowLayout(guest, label, 'recipient', work);
             console.log(label, 'recipient', await checkThemes(guest));
-            await guest.evaluate(() => localStorage.setItem(':theme', '"dark"'));
             await guest.getByRole('button', { name: 'Choose theme', exact: true }).click();
             await guest.getByLabel('Theme', { exact: true }).selectOption('rose-pine-dawn');
             await guest.getByRole('button', { name: 'Apply', exact: true }).click();
-            assert.equal(await guest.evaluate(() => localStorage.getItem(':theme')), '"dark"', 'share preference cannot overwrite root preference');
             await guest.reload();
             assert.equal(await guest.locator('html').getAttribute('data-theme'), 'rose-pine-dawn');
+            await guest.goto(url + '/');
+            assert.equal(await guest.locator('html').getAttribute('data-theme'), 'rose-pine-dawn', 'share preference crosses into owner path');
+            assert(await guest.getByRole('dialog', { name: 'Owner login' }).isVisible(), 'theme preference grants no owner access');
+            await guest.goto(share);
+            await guest.getByRole('button', { name: 'Choose theme', exact: true }).click();
+            await guest.getByRole('button', { name: 'Use system default', exact: true }).click();
+            await guest.goto(url + '/');
+            assert.equal(await guest.locator('html').getAttribute('data-theme'), 'light', 'share reset clears preference for owner path');
+            await guest.goto(share);
+            await page.reload();
+            assert.equal(await page.locator('html').getAttribute('data-theme'), 'catppuccin-mocha', 'recipient changes cannot affect owner profile');
+            await page.getByText('208 items', { exact: true }).waitFor({ state: 'visible' });
             await checkRows(guest, share, false);
             assert.equal((await recipient.request.get(url + '/files/folder/a%20%23%3F%25%C3%A9.txt')).status(), 401);
             await guest.getByLabel('Filter files', { exact: true }).fill('item-204');

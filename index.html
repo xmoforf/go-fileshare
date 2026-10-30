@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="nord">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -135,25 +135,17 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 -->
 <script type="application/json" id="themeCatalog">
 {
-  "dark": {"name":"Dark","scheme":"dark","colors":{"bg":"#2f343f","bg-raised":"#3d4351","bg-input":"#262a32","text":"#ffffff","text-dim":"#b5bec8","border":"#b5bec8","accent":"#8cb9ff","btn-hover-bg":"#3d4351","success":"#8be5a6","error":"#ff9292"}},
   "light": {"name":"Light","scheme":"light","colors":{"bg":"#f5f5f5","bg-raised":"#e8e8e8","bg-input":"#ffffff","text":"#1a1a1a","text-dim":"#595959","border":"#595959","accent":"#1e54c7","btn-hover-bg":"#e8e8e8","success":"#176b33","error":"#b12828"}},
-  "catppuccin-latte": {"name":"Catppuccin Latte","scheme":"light","colors":{"bg":"#eff1f5","bg-raised":"#e8ebef","bg-input":"#eff1f5","text":"#4c4f69","text-dim":"#64677e","border":"#64677e","btn-hover-bg":"#e8ebef","accent":"#2761d9","success":"#47724e","error":"#cf103a"}},
-  "catppuccin-frappe": {"name":"Catppuccin Frappe","scheme":"dark","colors":{"bg":"#303446","bg-raised":"#363a4d","bg-input":"#303446","text":"#c6d0f5","text-dim":"#afb9db","border":"#afb9db","btn-hover-bg":"#363a4d","accent":"#8caaee","success":"#a6d189","error":"#e19098"}},
-  "catppuccin-macchiato": {"name":"Catppuccin Macchiato","scheme":"dark","colors":{"bg":"#24273a","bg-raised":"#2b2e41","bg-input":"#24273a","text":"#cad3f5","text-dim":"#b1b9d9","border":"#b1b9d9","btn-hover-bg":"#2b2e41","accent":"#8aadf4","success":"#a6da95","error":"#ed8796"}},
   "catppuccin-mocha": {"name":"Catppuccin Mocha","scheme":"dark","colors":{"bg":"#1e1e2e","bg-raised":"#252536","bg-input":"#1e1e2e","text":"#cdd6f4","text-dim":"#b3bad6","border":"#b3bad6","btn-hover-bg":"#252536","accent":"#89b4fa","success":"#a6e3a1","error":"#f38ba8"}},
   "nord": {"name":"Nord","scheme":"dark","colors":{"bg":"#2e3440","bg-raised":"#353b47","bg-input":"#2e3440","text":"#d8dee9","text-dim":"#bec4d0","border":"#bec4d0","btn-hover-bg":"#353b47","accent":"#88c0d0","success":"#a3be8c","error":"#ca99a3"}},
   "rose-pine": {"name":"Rose Pine","scheme":"dark","colors":{"bg":"#191724","bg-raised":"#211f2c","bg-input":"#191724","text":"#e0def4","text-dim":"#c2c0d5","border":"#c2c0d5","btn-hover-bg":"#211f2c","accent":"#c4a7e7","success":"#9ccfd8","error":"#eb6f92"}},
-  "rose-pine-moon": {"name":"Rose Pine Moon","scheme":"dark","colors":{"bg":"#232136","bg-raised":"#2b293e","bg-input":"#232136","text":"#e0def4","text-dim":"#c4c2d8","border":"#c4c2d8","btn-hover-bg":"#2b293e","accent":"#c4a7e7","success":"#9ccfd8","error":"#eb6f92"}},
-  "rose-pine-dawn": {"name":"Rose Pine Dawn","scheme":"light","colors":{"bg":"#faf4ed","bg-raised":"#f3ede7","bg-input":"#faf4ed","text":"#464261","text-dim":"#615d76","border":"#615d76","btn-hover-bg":"#f3ede7","accent":"#286983","success":"#286983","error":"#935972"}},
-  "atom-one-dark": {"name":"Atom One Dark","scheme":"dark","colors":{"bg":"#282c34","bg-raised":"#2d313a","bg-input":"#282c34","text":"#abb2bf","text-dim":"#979eaa","border":"#979eaa","btn-hover-bg":"#2d313a","accent":"#61afef","success":"#98c379","error":"#cc8791"}},
-  "atom-one-light": {"name":"Atom One Light","scheme":"light","colors":{"bg":"#fafafa","bg-raised":"#f2f2f3","bg-input":"#fafafa","text":"#383a42","text-dim":"#55575e","border":"#55575e","btn-hover-bg":"#f2f2f3","accent":"#3e69c8","success":"#46784a","error":"#b24e47"}}
+  "rose-pine-dawn": {"name":"Rose Pine Dawn","scheme":"light","colors":{"bg":"#faf4ed","bg-raised":"#f3ede7","bg-input":"#faf4ed","text":"#464261","text-dim":"#615d76","border":"#615d76","btn-hover-bg":"#f3ede7","accent":"#286983","success":"#286983","error":"#935972"}}
 }
 </script>
 <script>
   var themes = JSON.parse(document.getElementById('themeCatalog').textContent);
-  var themeKey = window.location.pathname.replace(/\/$/, '') + ':theme';
   function systemTheme() {
-    return window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'nord';
   }
   function applyTheme(id) {
     if (typeof id !== 'string' || !Object.prototype.hasOwnProperty.call(themes, id)) id = systemTheme();
@@ -166,8 +158,8 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
   // Apply before styles/first paint; denied storage must not prevent rendering.
   (function() {
     var saved;
-    try { saved = JSON.parse(localStorage.getItem(themeKey)); } catch(e) {}
-    applyTheme(saved);
+    try { saved = document.cookie.match(/(?:^|;\s*)__Host-file-share-theme=([^;]*)/); } catch(e) {}
+    applyTheme(saved && saved[1]);
   })();
 </script>
 <style>
@@ -233,7 +225,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
   .stats {
     color: var(--text-dim);
     font-size: 12px;
-    text-align: center;
+    text-align: left;
     white-space: nowrap;
   }
   #themeToggle { display: flex; align-items: center; justify-content: center; min-width: 40px; padding: 6px; }
@@ -348,15 +340,12 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     .search-field { flex-basis: 100%; min-width: 0; }
     .owner-actions { order: 1; flex: 1; }
     .owner-actions .action { padding-inline: 8px; }
-    .stats { order: 2; }
     #themeToggle { order: 3; }
     .breadcrumbs { font-size: 0.95em; }
   }
 
   @media (max-width: 400px) {
     .col-size, .row .col-size { width: 55px; }
-    .stats { order: 4; flex-basis: 100%; text-align: left; font-size: 11px; }
-    body:not(.owner) .stats { order: 2; flex: 1; }
   }
   [hidden] { display: none !important; }
   button, select, dialog input { font: inherit; }
@@ -367,12 +356,12 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
   #searchModes { display: flex; gap: 2px; }
   #searchModes button {
     min-width: 28px; min-height: 28px; padding: 2px;
-    border: 1px solid transparent; border-radius: 3px;
+    border: none; border-radius: 3px;
     background: transparent; color: var(--text-dim); font: inherit;
   }
   #searchModes button:hover { color: var(--text); }
   #searchModes button[aria-pressed="true"] {
-    background: var(--btn-hover-bg); color: var(--accent); border-color: var(--accent);
+    background: var(--btn-hover-bg); color: var(--accent); text-decoration: underline;
   }
   #searchModes button:focus-visible { outline-offset: -2px; }
   @media (pointer: coarse) {
@@ -416,7 +405,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
       <button type="button" id="searchRegex" aria-label="Regular expression" title="Regular expression" aria-pressed="false">.*</button>
     </div>
   </div>
-  <div class="stats" id="stats" role="status" aria-atomic="true"></div>
   <button class="action" id="themeToggle" aria-label="Choose theme" title="Choose theme" aria-haspopup="dialog">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" focusable="false">
       <path d="M12 3a9 9 0 1 0 0 18h1a2 2 0 0 0 1.4-3.4 1.5 1.5 0 0 1 1.1-2.6H18a3 3 0 0 0 3-3 9 9 0 0 0-9-9Z"/>
@@ -429,6 +417,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     <button class="action" id="logout" hidden>Log out</button>
   </div>
 </div>
+<div class="stats" id="stats" role="status" aria-atomic="true"></div>
 <div id="filterError" role="status"></div>
 <div class="thead" id="thead" role="group" aria-label="Sort files">
   <button type="button" class="col-name" data-sort="name">Name</button>
@@ -641,11 +630,11 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
   themeApply.addEventListener('click', function() {
     if (!themeSelect.value) return;
     applyTheme(themeSelect.value);
-    store(themeKey, themeSelect.value);
+    try { document.cookie = '__Host-file-share-theme=' + themeSelect.value + '; Max-Age=31536000; Path=/; Secure; SameSite=Lax'; } catch(e) {}
     themeDialog.close();
   });
   document.getElementById('themeReset').addEventListener('click', function() {
-    try { localStorage.removeItem(themeKey); } catch(e) {}
+    try { document.cookie = '__Host-file-share-theme=; Max-Age=0; Path=/; Secure; SameSite=Lax'; } catch(e) {}
     applyTheme(systemTheme());
     themeDialog.close();
   });

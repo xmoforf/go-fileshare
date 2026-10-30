@@ -12,9 +12,9 @@ Use the always-visible buttons inside the right edge of **Filter files** to chan
 - **""** (**Match phrase**) — match the query as one literal substring, preserving whitespace; not a whole-word or whole-filename match.
 - **`.*`** — use a regular expression, such as `^report.*\.pdf$`, without surrounding slashes or trailing flags. **Aa** controls case sensitivity.
 
-All buttons start off; enabled buttons are highlighted. **""** and **`.*`** are mutually exclusive. Click an enabled button to turn it off. Invalid regular expressions show an error until corrected, cleared, or regex mode is turned off. The former `/regex/flags` shortcut is no longer recognized; use **`.*`** and remove the delimiters and flags.
+These borderless buttons start off; enabled buttons are highlighted and underlined, and keyboard focus stays outlined. **""** and **`.*`** are mutually exclusive. Click an enabled button to turn it off. Invalid regular expressions show an error until corrected, cleared, or regex mode is turned off. The former `/regex/flags` shortcut is no longer recognized; use **`.*`** and remove the delimiters and flags.
 
-If nothing matches, choose **Clear filter** to restore the list and return focus to the input. Matching modes stay selected. An empty folder shows **This folder is empty** instead. Result counts are announced to assistive technology.
+If nothing matches, choose **Clear filter** to restore the list and return focus to the input. Matching modes stay selected. An empty folder shows **This folder is empty** instead. A compact count row below the controls shows totals or filtered/total items, above the sort headers. Count changes are announced to assistive technology.
 
 Select **Name**, **Size**, or **Modified** to sort; select again to reverse. Earlier sort choices break ties. Filtering and sorting cover the complete directory, including rows outside the visible area. Use the file filter rather than browser Find for offscreen filenames.
 
@@ -47,9 +47,13 @@ Use a current browser with JavaScript and cookies enabled. Clipboard permission 
 
 ## Change appearance
 
-In either the owner or shared-folder browser, choose the palette icon (**Choose theme**) beside the item count, below the path. Search or select a theme, then choose **Apply**. Search and selection do not change the current theme until applied. **Cancel** or Escape keeps the current choice. **Use system default** clears the saved preference and uses the OS light/dark setting.
+In either the owner or shared-folder browser, choose the palette icon (**Choose theme**) in the controls below the path. Search or select a theme, then choose **Apply**. Search and selection do not change the current theme until applied. **Cancel** or Escape keeps the current choice. **Use system default** clears the saved preference and uses the OS light/dark setting.
 
-Themes include Light, Dark, Catppuccin Latte/Frappe/Macchiato/Mocha, Nord, Atom One Dark/Light, and Rose Pine/Moon/Dawn. Preferences are saved in this browser, separately for the owner page and each shared-folder link. The OS preference is read at page load or reset. If browser storage is unavailable, a change may last only for the current page.
+Choose from Light, Nord, Catppuccin Mocha, Rose Pine, and Rose Pine Dawn. The system default is Light for a light OS setting, Nord otherwise; it is read at page load or reset.
+
+An applied choice is saved for one year in a host-only, Secure, SameSite=Lax cookie with `Path=/`. It applies across owner and shared-folder pages on the same hostname and browser profile, not other hosts, subdomains, or profiles. Reload an already-open page to pick up another page's choice. **Use system default** clears this shared preference. Invalid or removed theme IDs fall back to the system default; if cookies are blocked, your choice may last only for the current page.
+
+Older per-page theme preferences are not migrated; reselect your theme once. Sort preferences still use per-page browser storage.
 
 ## Keyboard controls
 

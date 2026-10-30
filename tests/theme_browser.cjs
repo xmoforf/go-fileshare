@@ -46,7 +46,7 @@ async function checkThemes(page) {
   await trigger.press('Enter');
   assert(await search.evaluate(el => el === document.activeElement), 'search focus; active=' + await page.evaluate(() => document.activeElement.id));
   const options = await select.locator('option').allTextContents();
-  assert.equal(options.length, 12);
+  assert.deepEqual(new Set(options), new Set(['Light', 'Nord', 'Catppuccin Mocha', 'Rose Pine', 'Rose Pine Dawn']));
   assert.deepEqual(options, [...options].sort((a, b) => a.localeCompare(b)));
   await search.fill('nOrD');
   assert.deepEqual(await select.locator('option:enabled').allTextContents(), ['Nord']);
@@ -66,7 +66,17 @@ async function checkThemes(page) {
   await apply.press('Enter');
   assert.equal(await current(), 'nord');
   assert(await trigger.evaluate(el => el === document.activeElement));
-  assert.equal(await page.evaluate(() => localStorage.getItem(location.pathname.replace(/\/$/, '') + ':theme')), '"nord"');
+  const cookies = (await page.context().cookies()).filter(cookie => cookie.name === '__Host-file-share-theme');
+  assert.equal(cookies.length, 1);
+  const cookie = cookies[0];
+  assert.equal(cookie.value, 'nord');
+  assert.equal(cookie.domain, new URL(page.url()).hostname, 'host-only, no Domain attribute');
+  assert.equal(cookie.path, '/');
+  assert.equal(cookie.secure, true);
+  assert.equal(cookie.httpOnly, false, 'non-auth preference is JS-readable');
+  assert.equal(cookie.sameSite, 'Lax');
+  assert(Math.abs(cookie.expires - Date.now() / 1000 - 31536000) < 10, 'one-year lifetime');
+  assert.equal((await page.context().cookies('https://localhost/')).some(c => c.name === cookie.name), false, 'no unrelated host preference');
   await page.reload();
   assert.equal(await current(), 'nord');
   await trigger.click();
@@ -80,7 +90,7 @@ async function checkThemes(page) {
   assert.equal(await current(), 'nord');
   assert(await trigger.evaluate(el => el === document.activeElement));
   await trigger.click();
-  await select.selectOption('catppuccin-latte');
+  await select.selectOption('catppuccin-mocha');
   await select.press('Escape');
   assert.equal(await dialog.isVisible(), false);
   assert.equal(await current(), 'nord');
@@ -110,7 +120,7 @@ async function checkThemes(page) {
     await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
   }
   // Sample the first frame of a palette change while a row is highlighted.
-  await page.evaluate(() => applyTheme('dark'));
+  await page.evaluate(() => applyTheme('nord'));
   await page.locator('#viewport .row').first().hover();
   await page.evaluate(() => Promise.all(document.getAnimations().map(animation => animation.finished.catch(() => {}))));
   await page.evaluate(() => applyTheme('light'));
@@ -118,31 +128,39 @@ async function checkThemes(page) {
   await trigger.click();
   await search.fill('no matches');
   await dialog.getByRole('button', { name: 'Use system default', exact: true }).click();
-  assert.equal(await page.evaluate(() => localStorage.getItem(location.pathname.replace(/\/$/, '') + ':theme')), null);
-  assert.equal(await current(), await page.evaluate(() => matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'));
+  assert.equal((await page.context().cookies()).some(cookie => cookie.name === '__Host-file-share-theme'), false);
+  assert.equal(await current(), await page.evaluate(() => matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'nord'));
   assert(await trigger.evaluate(el => el === document.activeElement));
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'no horizontal overflow');
-  return 'PASS themes: native keyboard search/apply/cancel/Escape/reset, twelve palettes, persistence and focus';
+  return 'PASS themes: native keyboard search/apply/cancel/Escape/reset, five palettes, host-only Secure Lax one-year cookie and focus';
 }
 
 async function checkThemeStorage(browser, url, viewport) {
-  for (const [saved, expected, denied] of [
-    ['"light"', 'light', false], ['"dark"', 'dark', false], ['"catppuccin-mocha"', 'catppuccin-mocha', false],
-    ['{', 'light', false], ['"removed"', 'light', false], ['"__proto__"', 'light', false],
-    ['{"id":"nord"}', 'light', false], [null, 'light', true],
+  for (const [saved, expected, colorScheme = 'light', denied = false] of [
+    ['light', 'light'], ['nord', 'nord'], ['catppuccin-mocha', 'catppuccin-mocha'],
+    ['rose-pine', 'rose-pine'], ['rose-pine-dawn', 'rose-pine-dawn'],
+    ['', 'light'], ['%', 'light'], ['removed', 'light'], ['__proto__', 'light'],
+    ['dark', 'light'], ['catppuccin-latte', 'light'], ['{"id":"nord"}', 'light'],
+    [null, 'light'], [null, 'nord', 'dark'], ['removed', 'nord', 'dark'],
+    [null, 'light', 'light', 'throws'], [null, 'light', 'light', 'ignored'],
   ]) {
-    const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport, colorScheme: 'light' });
+    const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport, colorScheme });
     try {
-      await context.addInitScript(({ saved, denied }) => {
-        if (saved !== null) localStorage.setItem(':theme', saved);
-        if (denied) for (const method of ['getItem', 'setItem', 'removeItem']) Storage.prototype[method] = () => { throw new Error('denied'); };
+      if (saved !== null) await context.addCookies([{ name: '__Host-file-share-theme', value: saved, url, secure: true, sameSite: 'Lax' }]);
+      await context.addInitScript(({ denied }) => {
+        // Old per-path preferences are deliberately not migrated.
+        localStorage.setItem(location.pathname.replace(/\/$/, '') + ':theme', '"rose-pine"');
+        if (denied) Object.defineProperty(document, 'cookie', {
+          get() { if (denied === 'throws') throw new Error('denied'); return ''; },
+          set() { if (denied === 'throws') throw new Error('denied'); },
+        });
         window.themeFrames = [];
         function capture() {
           if (document.styleSheets.length) window.themeFrames.push(document.documentElement.dataset.theme);
           if (window.themeFrames.length < 3) requestAnimationFrame(capture);
         }
         requestAnimationFrame(capture);
-      }, { saved, denied });
+      }, { denied });
       const page = await context.newPage();
       const errors = [];
       page.on('pageerror', error => errors.push(error.message));
@@ -166,6 +184,23 @@ async function checkThemeStorage(browser, url, viewport) {
       assert.deepEqual(errors, []);
     } finally { await context.close(); }
   }
+  const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport, colorScheme: 'light' });
+  try {
+    const page = await context.newPage();
+    await page.goto(url.replace('127.0.0.1', 'localhost') + '/');
+    await page.getByRole('dialog', { name: 'Owner login' }).waitFor({ state: 'visible' });
+    await page.locator('#loginDialog').evaluate(el => el.close());
+    await page.getByRole('button', { name: 'Choose theme', exact: true }).click();
+    await page.getByLabel('Theme', { exact: true }).selectOption('nord');
+    await page.getByRole('button', { name: 'Apply', exact: true }).click();
+    assert.equal((await context.cookies()).find(c => c.name === '__Host-file-share-theme').domain, 'localhost');
+    // Playwright's cookies(URL) filter ignores host-only scope; test real navigation.
+    await page.goto(url.replace('127.0.0.1', 'child.localhost') + '/');
+    assert.equal(await page.locator('html').getAttribute('data-theme'), 'light', 'host-only cookie excludes subdomains');
+    assert.equal(await page.evaluate(() => document.cookie.includes('__Host-file-share-theme=')), false);
+    await page.goto(url + '/');
+    assert.equal(await page.locator('html').getAttribute('data-theme'), 'light', 'another hostname gets system default');
+  } finally { await context.close(); }
 }
 
 module.exports = { checkThemes, checkThemeStorage };

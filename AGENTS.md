@@ -12,7 +12,7 @@ No hooks are installed. `origin` is `https://github.com/xmoforf/go-fileshare.git
 
 ## Environment
 
-`nix develop` supplies Go 1.27.3, GCC and Git. Filesystem confinement uses `os.Root`; preserve per-folder boundaries, single-file parent boundaries and fixed basenames, live saved-path semantics, and nonblocking special-file rejection. Unix `O_NONBLOCK`/SIGTERM remain; packaging and runtime support stay Linux. Keep `.envrc`, `flake.nix` and `flake.lock` tracked; local env, credentials and state stay ignored. Nix source selection includes only Go source/tests, module files, embedded HTML and distribution license/notices.
+`nix develop` supplies Go 1.27.3, GCC and Git. Filesystem confinement uses `os.Root`; preserve per-folder boundaries, single-file parent boundaries and fixed basenames, live saved-path semantics, and nonblocking special-file rejection. Unix `O_NONBLOCK`/SIGTERM remain; packaging and runtime support stay Linux. Windows is excluded: no runtime claims, tests, or compatibility shims. Keep `.envrc`, `flake.nix` and `flake.lock` tracked; local env, credentials and state stay ignored. Nix source selection includes only Go source/tests, module files, embedded HTML and distribution license/notices.
 
 ## Verification
 

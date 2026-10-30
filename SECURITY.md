@@ -18,6 +18,8 @@ File-share is a single-owner, read-only service. The host administrator, owner, 
 | Content | Active/unknown content downloads as attachments. File responses use sandbox CSP and `nosniff`; responses use no-store/no-referrer. No malware scanning or transcoding is provided. |
 | State | SQLite stores share tokens and permissions. Restarting or changing credentials clears owner sessions, not shares. Restoring older state can restore revoked links. |
 
+The separate `__Host-file-share-theme` cookie stores only a validated theme ID, never authentication or share permissions. It is JS-readable, host-only, Secure, SameSite=Lax, `Path=/`, with a one-year lifetime; reset expires it. It crosses owner/share paths within a browser profile, not hosts or subdomains.
+
 The CLI generates cost-12 bcrypt hashes from passwords of 12–72 bytes. Imported higher-cost hashes increase login work; bcrypt is not cancelable once verification starts. Credentials are read at startup and are not rewritten automatically.
 
 ## Filesystem boundaries
@@ -28,7 +30,7 @@ Relative symlinks must resolve without leaving the applicable root. Absolute lin
 
 Saved paths are resolved anew, including after restart. Trusted writers can redirect a saved folder or ancestor to another directory within the configured tree, changing what an existing token exposes. Replacing a shared folder with a relative link to the configured root can expose that entire tree. A shared file's basename can likewise become a link to another file within its reopened parent. Revoke affected tokens before making changes that should not reach existing recipients. Root confinement does not prevent hard links, mounts or malicious changes by trusted writers.
 
-File opens use Unix `O_NONBLOCK` so FIFOs can be rejected without waiting for a writer; this is not a general device or slow-filesystem sandbox. Packaging and runtime support remain Linux; cross-compilation alone does not establish support for other Unix systems or Windows.
+File opens use Unix `O_NONBLOCK` so FIFOs can be rejected without waiting for a writer; this is not a general device or slow-filesystem sandbox. Packaging and runtime support remain Linux; cross-compilation alone does not establish support for other Unix systems. Windows is outside scope: no runtime claims, tests, or compatibility shims.
 
 ## Deployment hardening
 

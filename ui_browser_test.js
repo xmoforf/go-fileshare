@@ -163,11 +163,15 @@ async function checkCompactLayout(page) {
         const modes = rect('searchModes');
         if (modes.left < search.right || modes.right > field.right || modes.top < field.top || modes.bottom > field.bottom) failures.push('modes must fit inside field after text');
         if (Math.abs(center(search) - center(modes)) > 1) failures.push('inline modes must align with input');
-        if (innerWidth > 700 && (Math.abs(center(search) - center(theme)) > 1 || Math.abs(center(search) - center(stats)) > 1)) {
-          failures.push('desktop filter/count/theme must stay on same row');
+        if (innerWidth > 700 && Math.abs(center(search) - center(theme)) > 1) {
+          failures.push('desktop filter/theme must stay on same row');
         }
+        if (stats.top < toolbar.bottom || stats.bottom > rect('thead').top) failures.push('count must sit below controls, before sort headers');
+        const statsStyle = getComputedStyle(statsEl);
+        if (stats.height < 16 || stats.height > 24 || parseFloat(statsStyle.fontSize) < 12 || statsStyle.textAlign !== 'left') failures.push('count row must be short and readable');
+        if (statsEl.closest('.toolbar') || statsEl.scrollWidth > statsEl.clientWidth) failures.push('count must fit its own row');
         if (search.width < 120 || theme.width < 36 || theme.height < 36) failures.push('filter and theme targets must remain usable');
-        const controls = [...document.querySelectorAll('#search, #stats, .toolbar button')].filter(el => el.getClientRects().length);
+        const controls = [...document.querySelectorAll('#search, .toolbar button')].filter(el => el.getClientRects().length);
         const boxes = controls.map(el => el.getBoundingClientRect());
         for (const [i, box] of boxes.entries()) {
           if (box.left < 0 || box.right > innerWidth || box.top < toolbar.top || box.bottom > toolbar.bottom) failures.push('control outside toolbar/viewport');
@@ -194,7 +198,7 @@ async function checkCompactLayout(page) {
     return failures;
   });
   if (failures.length) throw new Error('compact layout: ' + failures.join(', '));
-  return 'PASS: compact path/controls, accessible palette, long paths, trailing actions and viewport fit';
+  return 'PASS: compact path/controls/count rows, accessible palette, long paths, trailing actions and viewport fit';
 }
 
 async function checkFileFilter(page) {
@@ -210,16 +214,21 @@ async function checkFileFilter(page) {
   const labels = ['Aa', '""', '.*'];
   const inactiveColors = [];
   assert(await page.locator('.toolbar button[aria-pressed]').count() === 3, 'three search-mode buttons in filter bar');
+  await search.focus();
   for (let i = 0; i < buttons.length; i++) {
     assert(await buttons[i].textContent() === labels[i], 'compact search-mode label');
     assert(await buttons[i].getAttribute('aria-pressed') === 'false', 'search modes start off');
     inactiveColors.push(await buttons[i].evaluate(el => getComputedStyle(el).backgroundColor));
+    await page.keyboard.press('Tab');
+    assert(await buttons[i].evaluate(el => el === document.activeElement && getComputedStyle(el).outlineStyle !== 'none'), 'mode keeps visible keyboard focus');
   }
   async function state(expected) {
     for (let i = 0; i < buttons.length; i++) {
       assert(await buttons[i].getAttribute('aria-pressed') === String(expected[i]), 'independent case and exclusive matching modes: ' + expected);
+      assert(await buttons[i].evaluate(el => ['Top', 'Right', 'Bottom', 'Left'].every(side => getComputedStyle(el)['border' + side + 'Width'] === '0px')), 'mode must be borderless in every state');
       const color = await buttons[i].evaluate(el => getComputedStyle(el).backgroundColor);
       assert((color !== inactiveColors[i]) === expected[i], 'only enabled buttons have highlighted background');
+      assert(await buttons[i].evaluate(el => getComputedStyle(el).textDecorationLine.includes('underline')) === expected[i], 'selected mode needs a non-color cue');
     }
   }
   async function matches(query, count) {
@@ -313,7 +322,7 @@ async function checkFileFilter(page) {
   assert(await error.textContent() === '', 'turning regex off clears error');
   assert(await rows.count() === 0, 'invalid regex becomes literal text when disabled');
   await matches('item-204', 1);
-  await checkCompactLayout(page); // Filtered counts must also fit the narrow toolbar.
+  await checkCompactLayout(page); // Filtered counts must also fit the narrow count row.
   await matches('', 208);
   return 'PASS: search modes, independent case, exclusive toggles/highlights, literal whitespace, raw regex, errors and keyboard focus';
 }

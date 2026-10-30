@@ -107,82 +107,6 @@
   ],
   "themes": [
     {
-      "id": "catppuccin-latte",
-      "name": "Catppuccin Latte",
-      "authorSource": "catppuccin",
-      "mapping": "base/text/blue/green/red",
-      "sourceColors": {
-        "bg": "#eff1f5",
-        "text": "#4c4f69",
-        "accent": "#1e66f5",
-        "success": "#40a02b",
-        "error": "#d20f39"
-      },
-      "collectionURL": "https://raw.githubusercontent.com/mbadolato/iTerm2-Color-Schemes/27cbbb5ee7e98ff15484e7342b07a20606260176/windowsterminal/Catppuccin%20Latte.json",
-      "collectionSHA256": "9d044d2310f1a3a2d20d925e71905f2a785c3ca2f6f8bc38d79d4fd8f75235aa",
-      "collectionBackground": "#eff1f5",
-      "collectionForeground": "#4c4f69",
-      "adjustments": {
-        "accent": {
-          "source": "#1e66f5",
-          "adapted": "#2761d9",
-          "foregroundBlendPercent": 20
-        },
-        "success": {
-          "source": "#40a02b",
-          "adapted": "#47724e",
-          "foregroundBlendPercent": 57
-        },
-        "error": {
-          "source": "#d20f39",
-          "adapted": "#cf103a",
-          "foregroundBlendPercent": 2
-        }
-      }
-    },
-    {
-      "id": "catppuccin-frappe",
-      "name": "Catppuccin Frappe",
-      "authorSource": "catppuccin",
-      "mapping": "base/text/blue/green/red",
-      "sourceColors": {
-        "bg": "#303446",
-        "text": "#c6d0f5",
-        "accent": "#8caaee",
-        "success": "#a6d189",
-        "error": "#e78284"
-      },
-      "collectionURL": "https://raw.githubusercontent.com/mbadolato/iTerm2-Color-Schemes/27cbbb5ee7e98ff15484e7342b07a20606260176/windowsterminal/Catppuccin%20Frappe.json",
-      "collectionSHA256": "5af41e4e2850e7d3a15b91e814bd8042f91da108dfd498efb4af89a84b2326f3",
-      "collectionBackground": "#303446",
-      "collectionForeground": "#c6d0f5",
-      "adjustments": {
-        "error": {
-          "source": "#e78284",
-          "adapted": "#e19098",
-          "foregroundBlendPercent": 18
-        }
-      }
-    },
-    {
-      "id": "catppuccin-macchiato",
-      "name": "Catppuccin Macchiato",
-      "authorSource": "catppuccin",
-      "mapping": "base/text/blue/green/red",
-      "sourceColors": {
-        "bg": "#24273a",
-        "text": "#cad3f5",
-        "accent": "#8aadf4",
-        "success": "#a6da95",
-        "error": "#ed8796"
-      },
-      "collectionURL": "https://raw.githubusercontent.com/mbadolato/iTerm2-Color-Schemes/27cbbb5ee7e98ff15484e7342b07a20606260176/windowsterminal/Catppuccin%20Macchiato.json",
-      "collectionSHA256": "ab5724fe7a8de90dda09d83de008c8c7367d5b93e678454375027a7ce5dfa952",
-      "collectionBackground": "#24273a",
-      "collectionForeground": "#cad3f5",
-      "adjustments": {}
-    },
-    {
       "id": "catppuccin-mocha",
       "name": "Catppuccin Mocha",
       "authorSource": "catppuccin",
@@ -243,24 +167,6 @@
       "adjustments": {}
     },
     {
-      "id": "rose-pine-moon",
-      "name": "Rose Pine Moon",
-      "authorSource": "rose-pine",
-      "mapping": "moon: base/text/iris/foam/love",
-      "sourceColors": {
-        "bg": "#232136",
-        "text": "#e0def4",
-        "accent": "#c4a7e7",
-        "success": "#9ccfd8",
-        "error": "#eb6f92"
-      },
-      "collectionURL": "https://raw.githubusercontent.com/mbadolato/iTerm2-Color-Schemes/27cbbb5ee7e98ff15484e7342b07a20606260176/windowsterminal/Rose%20Pine%20Moon.json",
-      "collectionSHA256": "d3973f38d3df1b9b8d4f1dbe6fdb44e4910aff3f33973232812fc349ed1a58c7",
-      "collectionBackground": "#232136",
-      "collectionForeground": "#e0def4",
-      "adjustments": {}
-    },
-    {
       "id": "rose-pine-dawn",
       "name": "Rose Pine Dawn",
       "authorSource": "rose-pine",
@@ -283,65 +189,7 @@
           "foregroundBlendPercent": 30
         }
       }
-    },
-    {
-      "id": "atom-one-dark",
-      "name": "Atom One Dark",
-      "authorSource": "atom-dark",
-      "mapping": "syntax-bg/mono-1/hue-2/hue-4/hue-5; standard HSL to sRGB rounded to nearest channel",
-      "sourceColors": {
-        "bg": "#282c34",
-        "text": "#abb2bf",
-        "accent": "#61afef",
-        "success": "#98c379",
-        "error": "#e06c75"
-      },
-      "collectionURL": "https://raw.githubusercontent.com/mbadolato/iTerm2-Color-Schemes/27cbbb5ee7e98ff15484e7342b07a20606260176/windowsterminal/Atom%20One%20Dark.json",
-      "collectionSHA256": "34427e8c004ca85325c4835f8986823b6ad56871651d6d4084be56898ae964ff",
-      "collectionBackground": "#21252b",
-      "collectionForeground": "#abb2bf",
-      "adjustments": {
-        "error": {
-          "source": "#e06c75",
-          "adapted": "#cc8791",
-          "foregroundBlendPercent": 38
-        }
-      }
-    },
-    {
-      "id": "atom-one-light",
-      "name": "Atom One Light",
-      "authorSource": "atom-light",
-      "mapping": "syntax-bg/mono-1/hue-2/hue-4/hue-5; standard HSL to sRGB rounded to nearest channel",
-      "sourceColors": {
-        "bg": "#fafafa",
-        "text": "#383a42",
-        "accent": "#4078f2",
-        "success": "#50a14f",
-        "error": "#e45649"
-      },
-      "collectionURL": "https://raw.githubusercontent.com/mbadolato/iTerm2-Color-Schemes/27cbbb5ee7e98ff15484e7342b07a20606260176/windowsterminal/Atom%20One%20Light.json",
-      "collectionSHA256": "3f48bd365a6ce4e0f73d488c6c65532187b437dd7d0724f30fdadf8af09645db",
-      "collectionBackground": "#f9f9f9",
-      "collectionForeground": "#2a2c33",
-      "adjustments": {
-        "accent": {
-          "source": "#4078f2",
-          "adapted": "#3e69c8",
-          "foregroundBlendPercent": 24
-        },
-        "success": {
-          "source": "#50a14f",
-          "adapted": "#46784a",
-          "foregroundBlendPercent": 40
-        },
-        "error": {
-          "source": "#e45649",
-          "adapted": "#b24e47",
-          "foregroundBlendPercent": 29
-        }
-      }
     }
   ],
-  "uiAdaptation": "Only the five author sourceColors are inputs. bg-input=bg; bg-raised and btn-hover-bg are 4% text blended into bg; text-dim and border are 85% text blended into bg. Accents/status colors blend toward text in whole percentage points until >=4.6:1 on both surfaces. Rounded sRGB channels. Runtime uses reviewed literals, not a contrast engine. Atom uses original syntax colors instead of collection terminal adjustments; Dawn uses the author palette text #464261 instead of collection #575279. Collection bright ANSI/selection colors are not imported."
+  "uiAdaptation": "Only the five author sourceColors are inputs. bg-input=bg; bg-raised and btn-hover-bg are 4% text blended into bg; text-dim and border are 85% text blended into bg. Accents/status colors blend toward text in whole percentage points until >=4.6:1 on both surfaces. Rounded sRGB channels. Runtime uses reviewed literals, not a contrast engine. Retained Atom source files are historical references, not active themes. Dawn uses the author palette text #464261 instead of collection #575279. Collection bright ANSI/selection colors are not imported."
 }
