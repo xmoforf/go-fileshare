@@ -1,5 +1,27 @@
 # Release notes
 
+## v1.0.5
+
+### Changes
+
+- Replace Linux `openat2` confinement with Go `os.Root`. Relative symlinks now work within the applicable folder or file-parent boundary; absolute and escaping links remain rejected. Linux remains the supported runtime.
+- Refine inline filename-filter controls, item counts, empty-state recovery, and touch targets. Keep recipient sharing actions visible and distinguish owner-only copy links.
+- Reduce the theme picker to Light, Nord, Catppuccin Mocha, Rose Pine, and Rose Pine Dawn. Save one theme preference across owner and shared-folder pages on the same host and browser profile.
+- Refresh README screenshots and sharing animation from the current UI with synthetic files.
+- Create version-specific GitHub Releases only after full checks and both GHCR and Docker Hub publication succeed. Share strict version validation between local packaging and publication.
+
+### Upgrade
+
+No database-schema or API-format migration is added. Existing share tokens, expiry times, and revocations remain stored in the same format. Back up the whole stopped state directory and follow the [update and rollback procedure](https://github.com/xmoforf/go-fileshare/blob/v1.0.5/docs/operations.md#update-and-roll-back), then reload the browser.
+
+**Review symlinks before upgrading.** Earlier versions rejected all symlinks; this version follows permitted relative links, including through existing folder shares. Saved paths are live references, not pinned objects. Trusted filesystem writers can retarget a shared folder or ancestor within the configured tree; replacing a shared folder with a relative link to the configured root can expose that entire tree through an existing token. Single-file links remain restricted to their saved basename within the reopened parent. Revoke affected links before changes that should not reach recipients. See [filesystem boundaries](https://github.com/xmoforf/go-fileshare/blob/v1.0.5/SECURITY.md#filesystem-boundaries).
+
+Reselect your theme once: older per-page preferences are not migrated. The system default is now Light for a light OS setting and Nord otherwise. The saved theme cookie contains only appearance preferences, not authorization; see [appearance settings](https://github.com/xmoforf/go-fileshare/blob/v1.0.5/docs/usage.md#change-appearance).
+
+### Known limitations
+
+Filtering covers the current directory only; large listings still consume browser memory despite virtualized rows. Shares track live paths, and revocation stops new requests rather than transfers already underway. No uploads, transcoding, or multi-user permissions are added. Linux packaging does not imply native support for other Unix systems; Windows remains unsupported. HTTPS and public-ingress protections remain operator responsibilities; see [application limits](https://github.com/xmoforf/go-fileshare/blob/v1.0.5/SECURITY.md#application-limits).
+
 ## v1.0.4
 
 ### Changes
